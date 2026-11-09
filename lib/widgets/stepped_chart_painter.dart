@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 class SteppedChartPainter extends CustomPainter {
   final Color lineColor;
   final Color baseLineColor;
+  final bool hasData;
 
   const SteppedChartPainter({
     required this.lineColor,
     required this.baseLineColor,
+    this.hasData = false,
   });
 
   @override
@@ -29,6 +31,8 @@ class SteppedChartPainter extends CustomPainter {
       );
       x += 5 * sx;
     }
+
+    if (!hasData) return;
 
     // 2. Stepped path:
     // M0 32 L16 32 L16 26 L32 26 L32 20 L48 20 L48 12 L64 12 L64 4 L80 4
@@ -55,7 +59,9 @@ class SteppedChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant SteppedChartPainter oldDelegate) {
-    return oldDelegate.lineColor != lineColor || oldDelegate.baseLineColor != baseLineColor;
+    return oldDelegate.lineColor != lineColor ||
+        oldDelegate.baseLineColor != baseLineColor ||
+        oldDelegate.hasData != hasData;
   }
 }
 

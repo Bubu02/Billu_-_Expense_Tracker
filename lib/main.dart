@@ -35,7 +35,7 @@ class _BilluAppState extends State<BilluApp> {
     final isDark = _themeMode == ThemeMode.dark;
 
     return MaterialApp(
-      title: 'Pilu - Minimal Expense Tracker',
+      title: 'Billu - Minimal Expense Tracker',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

@@ -5,7 +5,14 @@ import '../theme/app_typography.dart';
 import '../widgets/stepped_chart_painter.dart';
 
 class WalletsScreen extends StatefulWidget {
-  const WalletsScreen({super.key});
+  final List<AccountModel>? accounts;
+  final ValueChanged<AccountModel>? onAccountAdded;
+
+  const WalletsScreen({
+    super.key,
+    this.accounts,
+    this.onAccountAdded,
+  });
 
   @override
   State<WalletsScreen> createState() => _WalletsScreenState();
@@ -17,7 +24,9 @@ class _WalletsScreenState extends State<WalletsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
+    final allAccounts = widget.accounts ?? AccountModel.sampleAccounts;
+    final netLiquidity = allAccounts.fold<double>(0.0, (sum, a) => sum + a.balance);
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -160,7 +169,9 @@ class _WalletsScreenState extends State<WalletsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '\$14,820.50',
+                          netLiquidity < 0
+                              ? '-\$${netLiquidity.abs().toStringAsFixed(2)}'
+                              : '\$${netLiquidity.toStringAsFixed(2)}',
                           style: AppTypography.displayCurrencyMobile(colors.primary).copyWith(
                             fontWeight: FontWeight.w700,
                           ),
@@ -169,20 +180,24 @@ class _WalletsScreenState extends State<WalletsScreen> {
                         Row(
                           children: [
                             Icon(
-                              Icons.arrow_upward_rounded,
+                              allAccounts.isEmpty
+                                  ? Icons.remove_rounded
+                                  : Icons.arrow_upward_rounded,
                               size: 14,
                               color: colors.primary,
                             ),
                             const SizedBox(width: 2),
                             Text(
-                              '+3.8%',
+                              allAccounts.isEmpty ? '0.0%' : '+3.8%',
                               style: AppTypography.numericSm(colors.primary).copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              'vs last billing cycle',
+                              allAccounts.isEmpty
+                                  ? 'no cycle history'
+                                  : 'vs last billing cycle',
                               style: AppTypography.labelSubtle(colors.onSurfaceVariant),
                             ),
                           ],
@@ -198,6 +213,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                         painter: SteppedChartPainter(
                           lineColor: colors.primary,
                           baseLineColor: colors.outlineVariant,
+                          hasData: allAccounts.isNotEmpty,
                         ),
                       ),
                     ),
@@ -216,7 +232,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                           style: AppTypography.labelSubtle(colors.onSurfaceVariant),
                         ),
                         Text(
-                          '92% liquid',
+                          allAccounts.isEmpty ? '0% liquid' : '100% liquid',
                           style: AppTypography.numericSm(colors.onSurface).copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -231,15 +247,15 @@ class _WalletsScreenState extends State<WalletsScreen> {
                         child: Row(
                           children: [
                             Expanded(
-                              flex: 57,
+                              flex: allAccounts.isEmpty ? 0 : 70,
                               child: Container(color: colors.primary),
                             ),
                             Expanded(
-                              flex: 35,
+                              flex: allAccounts.isEmpty ? 0 : 30,
                               child: Container(color: colors.secondary),
                             ),
                             Expanded(
-                              flex: 8,
+                              flex: allAccounts.isEmpty ? 100 : 0,
                               child: Container(color: colors.surfaceContainerHighest),
                             ),
                           ],
@@ -258,7 +274,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'ACTIVE VAULTS (4)',
+                'ACTIVE VAULTS (${allAccounts.length})',
                 style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1.2,
@@ -272,14 +288,66 @@ class _WalletsScreenState extends State<WalletsScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Accounts List Cards
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: AccountModel.sampleAccounts.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final acc = AccountModel.sampleAccounts[index];
+          // Accounts List or Empty State Placeholder
+          if (allAccounts.isEmpty) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+              decoration: BoxDecoration(
+                color: colors.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: colors.surfaceContainer,
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 38,
+                    color: colors.onSurfaceVariant.withValues(alpha: 0.45),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'NO ACTIVE VAULTS',
+                    style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Add a bank account, card, or cash wallet to begin tracking',
+                    style: AppTypography.labelSubtle(colors.onSurfaceVariant),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: _showAddAccountSheet,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: colors.primary,
+                        borderRadius: BorderRadius.circular(9999),
+                      ),
+                      child: Text(
+                        '+ add first account',
+                        style: AppTypography.labelCaps(colors.onPrimary),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: allAccounts.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final acc = allAccounts[index];
 
               return Container(
                 padding: const EdgeInsets.all(16),
@@ -400,14 +468,84 @@ class _WalletsScreenState extends State<WalletsScreen> {
               );
             },
           ),
-          const SizedBox(height: 24),
+        ],
+        const SizedBox(height: 24),
+      ],
+    ),
+  );
+}
+
+  void _addAccountDialog(String title, IconData icon, String defaultName) {
+    Navigator.pop(context);
+    final nameCtrl = TextEditingController(text: defaultName);
+    final balanceCtrl = TextEditingController(text: '0.00');
+    final colors = context.billuColors;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.surfaceContainerLowest,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Add $title', style: AppTypography.headlineMd(colors.onSurface)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              style: AppTypography.bodyMd(colors.onSurface),
+              decoration: InputDecoration(
+                labelText: 'Account Name',
+                labelStyle: AppTypography.labelSubtle(colors.onSurfaceVariant),
+                hintText: 'e.g. Checking, Apple Card',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: balanceCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: AppTypography.bodyMd(colors.onSurface),
+              decoration: InputDecoration(
+                labelText: 'Starting Balance',
+                labelStyle: AppTypography.labelSubtle(colors.onSurfaceVariant),
+                hintText: '0.00',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: TextStyle(color: colors.onSurfaceVariant)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final bal = double.tryParse(balanceCtrl.text) ?? 0.0;
+              final name = nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : defaultName;
+              final newAcc = AccountModel(
+                id: 'acc-${DateTime.now().millisecondsSinceEpoch}',
+                name: name,
+                subtitle: 'manual vault',
+                balance: bal,
+                badgeText: 'active',
+                isPrimaryBadge: false,
+                icon: icon,
+              );
+              widget.onAccountAdded?.call(newAcc);
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colors.primary,
+              foregroundColor: colors.onPrimary,
+            ),
+            child: const Text('Add'),
+          ),
         ],
       ),
     );
   }
 
   void _showAddAccountSheet() {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
     showModalBottomSheet(
       context: context,
       backgroundColor: colors.surfaceContainerLowest,
@@ -429,21 +567,21 @@ class _WalletsScreenState extends State<WalletsScreen> {
                 const SizedBox(height: 16),
                 ListTile(
                   leading: const Icon(Icons.account_balance_outlined),
-                  title: const Text('Bank Account (Plaid)'),
+                  title: const Text('Bank Account'),
                   subtitle: const Text('Connect checking or savings'),
-                  onTap: () => Navigator.pop(context),
+                  onTap: () => _addAccountDialog('Bank Account', Icons.account_balance_outlined, 'Checking Account'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.credit_card_outlined),
                   title: const Text('Credit Card'),
                   subtitle: const Text('Auto-sync balances and statements'),
-                  onTap: () => Navigator.pop(context),
+                  onTap: () => _addAccountDialog('Credit Card', Icons.credit_card_outlined, 'Credit Card'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.payments_outlined),
                   title: const Text('Manual Cash Wallet'),
                   subtitle: const Text('Track physical currency envelope'),
-                  onTap: () => Navigator.pop(context),
+                  onTap: () => _addAccountDialog('Cash Wallet', Icons.payments_outlined, 'Cash Wallet'),
                 ),
               ],
             ),

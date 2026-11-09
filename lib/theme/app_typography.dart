@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Pilu Inter-based typographic scale with OpenType tabular figures support.
+/// Billu Inter-based typographic scale with OpenType tabular figures support.
 class AppTypography {
   AppTypography._();
 

@@ -44,7 +44,7 @@ class AppTheme {
         space: 1,
       ),
       extensions: const [
-        PiluColorsExtension.light,
+        BilluColorsExtension.light,
       ],
     );
   }
@@ -88,7 +88,7 @@ class AppTheme {
         space: 1,
       ),
       extensions: const [
-        PiluColorsExtension.dark,
+        BilluColorsExtension.dark,
       ],
     );
   }

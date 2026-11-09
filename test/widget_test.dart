@@ -12,6 +12,12 @@ import 'package:billu_expense_tracker/screens/settings_screen.dart';
 void main() {
   testWidgets('Billu app complete flow: onboarding, dashboard, tabs, quick-add, and theme toggle',
       (WidgetTester tester) async {
+    // Increase test surface height so scrollable/keypad widgets fit on screen
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     // 1. Build BilluApp
     await tester.pumpWidget(const BilluApp());
     await tester.pumpAndSettle();
@@ -27,7 +33,7 @@ void main() {
 
     expect(find.byType(MainScaffold), findsOneWidget);
     expect(find.byType(DashboardScreen), findsOneWidget);
-    expect(find.text('\$301.95'), findsOneWidget);
+    expect(find.text('\$0.00'), findsOneWidget);
 
     // 4. Test Privacy Masking on Dashboard
     final visibilityIcon = find.byIcon(Icons.visibility_rounded);
@@ -41,34 +47,34 @@ void main() {
     // Unmask
     await tester.tap(find.byIcon(Icons.visibility_off_rounded));
     await tester.pumpAndSettle();
-    expect(find.text('\$301.95'), findsOneWidget);
+    expect(find.text('\$0.00'), findsOneWidget);
 
     // 5. Test Navigation to Stats (Budget & Analytics)
     await tester.tap(find.text('stats'));
     await tester.pumpAndSettle();
     expect(find.byType(BudgetAnalyticsScreen), findsOneWidget);
     expect(find.text('analytics'), findsOneWidget);
-    expect(find.text('\$1,840'), findsOneWidget);
+    expect(find.text('\$0'), findsOneWidget);
 
     // 6. Test Navigation to Vault (Wallets)
     await tester.tap(find.text('vault'));
     await tester.pumpAndSettle();
     expect(find.byType(WalletsScreen), findsOneWidget);
     expect(find.text('wallets & cards'), findsOneWidget);
-    expect(find.text('\$14,820.50'), findsOneWidget);
+    expect(find.text('\$0.00'), findsOneWidget);
 
     // 7. Test Navigation to Setup (Settings) & Theme Toggle
     await tester.tap(find.text('setup'));
     await tester.pumpAndSettle();
     expect(find.byType(SettingsScreen), findsOneWidget);
     expect(find.text('settings'), findsOneWidget);
-    expect(find.text('pilu member'), findsOneWidget);
+    expect(find.text('billu member'), findsOneWidget);
 
     // 8. Test Quick Add Navigation (Floating '+' button)
     await tester.tap(find.byIcon(Icons.add_rounded));
     await tester.pumpAndSettle();
     expect(find.byType(QuickAddScreen), findsOneWidget);
-    expect(find.text('\$20.00'), findsOneWidget);
+    expect(find.text('\$0'), findsOneWidget);
 
     // Tap numeric keypad keys: 5, 0
     await tester.tap(find.widgetWithText(GestureDetector, '5'));
@@ -83,8 +89,67 @@ void main() {
     await tester.tap(find.byIcon(Icons.check_rounded));
     await tester.pumpAndSettle();
 
-    // Verify returning to MainScaffold
+    // Verify returning to MainScaffold with updated transaction amount on Dashboard
     expect(find.byType(MainScaffold), findsOneWidget);
+    expect(find.text('\$50.00'), findsOneWidget);
+  });
+
+  testWidgets('Header displays only logo billu and empty states show clean placeholders',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const BilluApp());
+    await tester.pumpAndSettle();
+
+    // Navigate past onboarding
+    await tester.tap(find.text('get started'));
+    await tester.pumpAndSettle();
+
+    // Verify header has logo 'billu' and NO page name after it
+    expect(find.text('billu'), findsOneWidget);
+    expect(find.text('Dashboard'), findsNothing);
+    expect(find.text('/'), findsNothing);
+
+    // Verify Dashboard empty state placeholder
+    expect(find.text('NO RECENT ENTRIES'), findsOneWidget);
+    expect(find.text('Tap the + button to log your first transaction'), findsOneWidget);
+
+    // Verify Stats (Budget & Analytics) tab
+    await tester.tap(find.text('stats'));
+    await tester.pumpAndSettle();
+    expect(find.text('billu'), findsOneWidget);
+    expect(find.text('Budget & Analytics'), findsNothing);
+    expect(find.text('NO ACTIVE CAPS'), findsOneWidget);
+    expect(find.text('no category breakdown available'), findsOneWidget);
+
+    // Verify Vault (Wallets) tab
+    await tester.tap(find.text('vault'));
+    await tester.pumpAndSettle();
+    expect(find.text('billu'), findsOneWidget);
+    expect(find.text('Wallets'), findsNothing);
+    expect(find.text('NO ACTIVE VAULTS'), findsOneWidget);
+    expect(find.text('+ add first account'), findsOneWidget);
+
+    // Test adding an account via dialog
+    await tester.tap(find.text('+ add first account'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add New Account'), findsOneWidget);
+
+    await tester.tap(find.text('Bank Account'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add Bank Account'), findsOneWidget);
+
+    // Tap 'Add' to confirm account
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+
+    // Account is now added and empty state is gone
+    expect(find.text('NO ACTIVE VAULTS'), findsNothing);
+    expect(find.text('Checking Account'), findsOneWidget);
+    expect(find.text('ACTIVE VAULTS (1)'), findsOneWidget);
   });
 }
 

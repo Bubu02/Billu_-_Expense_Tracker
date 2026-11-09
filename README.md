@@ -1,8 +1,8 @@
-# Billu / Pilu - Minimal Expense Tracker 📱✨
+# Billu - Minimal Expense Tracker 📱
 
-A high-fidelity mobile expense tracker built in **Flutter (Dart)** faithfully implementing the **Monochrome Precision Wireframe** design system extracted from **Stitch**.
+A high-fidelity mobile expense tracker built in **Flutter (Dart)** faithfully implementing the **Monochrome Precision Wireframe** design system.
 
-The application embodies architectural austerity, functional clarity, and editorial calm with complete, pixel-accurate support for both **Light** and **Dark** themes.
+The application embodies architectural austerity, functional clarity, and editorial calm with complete, pixel-accurate support for both **Light** and **Dark** themes, backed by a local-first, lightweight SQLite database.
 
 ---
 
@@ -13,6 +13,28 @@ The application embodies architectural austerity, functional clarity, and editor
   - **Light Mode**: Off-white canvas (`#F9F9F9`), sterile white containers (`#FFFFFF`), solid jet black ink accents (`#000000`), neutral gray outlines (`#7E7576`).
   - **Dark Mode**: Deep charcoal canvas (`#0A0A0A`), pitch black containers (`#000000`), crisp white ink accents (`#FFFFFF`), muted gray outlines (`#444748`).
 - **Tactile Depth**: Planar hierarchy without colored alerts or heavy drop shadows, relying on binary reversals (solid vs hollow wireframes) and crisp 1.5px ink boundaries.
+
+---
+
+## 💾 Local SQLite Database (`lib/core/database/db_helper.dart`)
+
+Built with `sqflite` and `path`, providing a clean, dependency-minimal, local-first persistence layer:
+
+- **Tables**:
+  - `categories`: Stores spending categories (`id`, `name`, `icon`, `created_at`).
+  - `accounts`: Stores bank, card, and cash vaults (`id`, `name`, `subtitle`, `balance`, `badge_text`, `is_primary_badge`, `icon`, `footer_left`, `footer_right`, `created_at`).
+  - `transactions`: Stores ledger records with foreign keys to categories and accounts (`id`, `title`, `subtitle`, `amount`, `is_expense`, `icon`, `category_id`, `account_id`, `timestamp`, `created_at`).
+- **Pre-seeded Default Categories**:
+  - 🛒 **Groceries**
+  - 🚇 **Transit**
+  - 🍽️ **Dining**
+  - 🏠 **Rent**
+  - ⚡ **Utilities**
+  - 🎉 **Fun**
+- **CRUD Operations**:
+  - Full insert, read, update, delete for all three tables.
+  - Analytics & summary queries: `getTotalBalance()`, `getTransactionsByDateRange()`, `getSpendingByCategory()`, `getTransactionsByCategory()`, `getTransactionsByAccount()`.
+  - Utility helpers: `resetAllData()` and `close()`.
 
 ---
 
@@ -34,7 +56,7 @@ The application embodies architectural austerity, functional clarity, and editor
 - **Horizontal Month Strip**: Month switcher (`jul`, `aug`, `sep`, `oct` active, `nov`, `dec`).
 - **Mindful Budget Health**: Leaf icon badge, `envelope in rhythm`, `$18.05 unallocated buffer remains`, and `84%` indicator.
 - **Ledger Groups**: Categorized by `today` (Coffee, Pet care, Commute, Groceries) and `yesterday` (Audiobook, Magazine Dispatch) with crisp line-art category icons and tabular prices.
-- **Receipt Mark**: `PILU LEDGER • SYNC 1M AGO`.
+- **Receipt Mark**: `BILLU LEDGER • SYNC 1M AGO`.
 
 ### 3. Quick-Add Entry (`quick_add_screen.dart`)
 - **Top Bar**: Dismiss `close` button, Segmented pill toggle (`expenses` ⇄ `income`), and currency indicator (`USD`).
@@ -67,7 +89,7 @@ The application embodies architectural austerity, functional clarity, and editor
   - Vault savings (Ally Bank 4.35% APY compounding yield)
 
 ### 6. Settings & Security / Setup (`settings_screen.dart`)
-- **Profile Card**: Avatar, `pilu member`, `local vault active`, `offline first` badge.
+- **Profile Card**: Avatar, `billu member`, `local vault active`, `offline first` badge.
 - **Appearance & Theme**: Interactive switch to toggle between **Light Wireframe** and **Dark Precision** themes live across the entire application.
 - **Security & Privacy**:
   - Biometric unlock (Fingerprint & Face ID)
@@ -77,36 +99,26 @@ The application embodies architectural austerity, functional clarity, and editor
   - Export vault archive (`csv • json • signed pdf`)
   - Encrypted cloud backup
   - Erase local database with confirmation dialog.
-- **Zen Statement**: `pilu android v1.0.4 • pure minimal budgeting • no ads • no cloud tracking`.
+- **Zen Statement**: `billu android v1.0.4 • pure minimal budgeting • no ads • no cloud tracking`.
 
 ---
 
-## 📂 Project Architecture
+## 📂 Project Structure
 
 ```
 Billu/
-├── designs/                        # Original Stitch exported mockups & design system
-│   ├── DESIGN_SYSTEM.md            # Complete design tokens, typography, and rules
-│   ├── onboarding-light.html
-│   ├── onboarding-dark.html
-│   ├── dashboard-light.html
-│   ├── dashboard-dark.html
-│   ├── quick-add-light.html
-│   ├── quick-add-dark.html
-│   ├── budget-analytics-light.html
-│   ├── budget-analytics-dark.html
-│   ├── wallets-light.html
-│   ├── wallets-dark.html
-│   ├── settings-light.html
-│   └── settings-dark.html
+├── android/                        # Native Android host configuration
 ├── lib/
-│   ├── main.dart                   # Application entry point with ThemeMode state
+│   ├── main.dart                   # Application entry point & ThemeMode state
+│   ├── core/
+│   │   └── database/
+│   │       └── db_helper.dart      # SQLite service, CRUD helpers & pre-seeded categories
 │   ├── theme/
-│   │   ├── app_colors.dart         # Light & Dark color tokens and ThemeExtension
+│   │   ├── app_colors.dart         # Light & Dark color tokens & ThemeExtension
 │   │   ├── app_typography.dart     # Inter-based typography with tabular figures
 │   │   └── app_theme.dart          # Light and Dark ThemeData implementations
 │   ├── models/
-│   │   ├── transaction_model.dart  # Transaction ledger models and sample data
+│   │   ├── transaction_model.dart  # Transaction ledger models
 │   │   ├── account_model.dart      # Bank, card, and cash vault models
 │   │   └── budget_model.dart       # Budget caps and donut segment definitions
 │   ├── widgets/
@@ -124,17 +136,32 @@ Billu/
 │       ├── budget_analytics_screen.dart # Stats / Analytics
 │       ├── wallets_screen.dart     # Vault / Wallets & Cards
 │       └── settings_screen.dart    # Setup / Settings & Security
-└── pubspec.yaml                    # Flutter project configuration
+├── test/
+│   └── widget_test.dart            # Widget tests covering complete app flow
+├── pubspec.yaml                    # Flutter dependencies (sqflite, path, google_fonts, intl)
+└── analysis_options.yaml           # Lint and analysis configuration
 ```
 
 ---
 
-## 🚀 Running the App
+## 🚀 Getting Started
 
-To run this app on an emulator, device, or web:
+### Prerequisites
+- Flutter SDK (`>=3.0.0 <4.0.0`)
+- Android Studio / Android SDK (configured for Android emulation or device debugging)
+
+### Installation & Run
 
 ```bash
+# Get dependencies
 flutter pub get
+
+# Run static analysis
+flutter analyze
+
+# Run automated tests
+flutter test
+
+# Launch on Android device / emulator
 flutter run
 ```
-

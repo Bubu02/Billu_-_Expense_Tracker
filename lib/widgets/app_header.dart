@@ -3,14 +3,14 @@ import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 
 class AppHeader extends StatelessWidget implements PreferredSizeWidget {
-  final String title;
+  final String? title;
   final bool showBack;
   final VoidCallback? onBack;
   final VoidCallback? onProfileTap;
 
   const AppHeader({
     super.key,
-    required this.title,
+    this.title,
     this.showBack = false,
     this.onBack,
     this.onProfileTap,
@@ -21,7 +21,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
 
     return Container(
       decoration: BoxDecoration(
@@ -62,28 +62,10 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                     ),
                   ],
                   Text(
-                    'pilu',
+                    'billu',
                     style: AppTypography.headlineLg(colors.primary).copyWith(
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.8,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '/',
-                    style: AppTypography.labelCaps(colors.outline),
-                  ),
-                  const SizedBox(width: 6),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 160),
-                    child: Text(
-                      title,
-                      style: AppTypography.headlineMd(colors.onSurface).copyWith(
-                        fontSize: 17,
-                        letterSpacing: -0.3,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],

@@ -5,12 +5,14 @@ class SparklinePainter extends CustomPainter {
   final Color gridLineColor;
   final Color pointColor;
   final bool isDark;
+  final bool hasData;
 
   const SparklinePainter({
     required this.lineColor,
     required this.gridLineColor,
     required this.pointColor,
     this.isDark = false,
+    this.hasData = false,
   });
 
   @override
@@ -51,6 +53,17 @@ class SparklinePainter extends CustomPainter {
       dashSpace: 6,
       paint: guidePaint,
     );
+
+    if (!hasData) {
+      // Draw quiet baseline placeholder
+      final linePaint = Paint()
+        ..color = lineColor.withValues(alpha: 0.25)
+        ..strokeWidth = 1.5
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(Offset(0, 56 * sy), Offset(w, 56 * sy), linePaint);
+      return;
+    }
 
     // 3. Draw smooth continuous sinusoidal spline:
     // M0 64 C25 64, 45 42, 70 42 C95 42, 110 58, 135 58 C160 58, 175 22, 205 22 C225 22, 230 46, 250 46 C270 46, 290 14, 320 18
@@ -109,7 +122,8 @@ class SparklinePainter extends CustomPainter {
     return oldDelegate.lineColor != lineColor ||
         oldDelegate.gridLineColor != gridLineColor ||
         oldDelegate.pointColor != pointColor ||
-        oldDelegate.isDark != isDark;
+        oldDelegate.isDark != isDark ||
+        oldDelegate.hasData != hasData;
   }
 }
 

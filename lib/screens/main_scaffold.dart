@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../models/account_model.dart';
+import '../models/budget_model.dart';
+import '../models/transaction_model.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
 import '../widgets/app_header.dart';
@@ -26,12 +29,9 @@ class _MainScaffoldState extends State<MainScaffold> {
   int _currentIndex = 0;
   bool _isMasked = false;
 
-  final List<String> _titles = [
-    'Dashboard',
-    'Budget & Analytics',
-    'Wallets',
-    'Settings',
-  ];
+  final List<TransactionModel> _transactions = [];
+  final List<AccountModel> _accounts = [];
+  final List<BudgetCategory> _budgetCategories = [];
 
   void _onQuickAdd() {
     Navigator.push(
@@ -40,7 +40,7 @@ class _MainScaffoldState extends State<MainScaffold> {
         builder: (context) => QuickAddScreen(
           onAddTransaction: (newTx) {
             setState(() {
-              // Automatically return to dashboard tab
+              _transactions.insert(0, newTx);
               _currentIndex = 0;
             });
             ScaffoldMessenger.of(context).showSnackBar(
@@ -57,15 +57,26 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
 
     final screens = [
       DashboardScreen(
         isMasked: _isMasked,
         onToggleMask: () => setState(() => _isMasked = !_isMasked),
+        transactions: _transactions,
       ),
-      const BudgetAnalyticsScreen(),
-      const WalletsScreen(),
+      BudgetAnalyticsScreen(
+        transactions: _transactions,
+        categories: _budgetCategories,
+      ),
+      WalletsScreen(
+        accounts: _accounts,
+        onAccountAdded: (newAcc) {
+          setState(() {
+            _accounts.add(newAcc);
+          });
+        },
+      ),
       SettingsScreen(
         isDarkTheme: widget.isDarkTheme,
         onThemeChanged: widget.onThemeChanged,
@@ -76,9 +87,7 @@ class _MainScaffoldState extends State<MainScaffold> {
 
     return Scaffold(
       backgroundColor: colors.surface,
-      appBar: AppHeader(
-        title: _titles[_currentIndex],
-      ),
+      appBar: const AppHeader(),
       body: IndexedStack(
         index: _currentIndex,
         children: screens,

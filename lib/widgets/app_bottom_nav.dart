@@ -16,7 +16,7 @@ class AppBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
 
     return Container(
       decoration: BoxDecoration(
@@ -37,7 +37,7 @@ class AppBottomNav extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: SizedBox(
+        child: Container(
           height: 64,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
@@ -108,7 +108,7 @@ class AppBottomNav extends StatelessWidget {
     required IconData icon,
     required String label,
   }) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
     final isSelected = currentIndex == index;
     final color = isSelected ? colors.primary : colors.onSurfaceVariant;
 

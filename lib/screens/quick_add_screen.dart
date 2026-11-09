@@ -15,19 +15,27 @@ class QuickAddScreen extends StatefulWidget {
 
 class _QuickAddScreenState extends State<QuickAddScreen> {
   bool _isExpense = true;
-  int _selectedDayIndex = 1; // 13 tue
-  String _currentInput = '20.00';
-  String _selectedCategory = 'burger king';
-  String _categoryEmoji = '🍔';
+  int _selectedDayIndex = 2; // today
+  String _currentInput = '0';
+  String _selectedCategory = 'general';
+  String _categoryEmoji = '🏷️';
   final TextEditingController _noteController = TextEditingController();
 
-  final List<Map<String, String>> _dateStrip = [
-    {'day': '12', 'weekday': 'mon'},
-    {'day': '13', 'weekday': 'tue'},
-    {'day': '14', 'weekday': 'wed'},
-    {'day': '15', 'weekday': 'thu'},
-    {'day': '16', 'weekday': 'fri'},
-  ];
+  late final List<Map<String, String>> _dateStrip;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    const weekdays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    _dateStrip = List.generate(5, (i) {
+      final d = now.subtract(Duration(days: 2 - i));
+      return {
+        'day': d.day.toString(),
+        'weekday': weekdays[d.weekday - 1],
+      };
+    });
+  }
 
   @override
   void dispose() {
@@ -42,7 +50,7 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
           _currentInput += '.';
         }
       } else {
-        if (_currentInput == '0' || _currentInput == '20.00') {
+        if (_currentInput == '0') {
           _currentInput = key;
         } else if (_currentInput.length < 9) {
           _currentInput += key;
@@ -58,6 +66,33 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
         if (_currentInput.isEmpty) _currentInput = '0';
       }
     });
+  }
+
+  IconData _getCategoryIcon(String cat) {
+    switch (cat.toLowerCase()) {
+      case 'groceries':
+        return Icons.shopping_cart_outlined;
+      case 'coffee & drinks':
+      case 'coffee':
+        return Icons.local_cafe_outlined;
+      case 'dining & food':
+      case 'dining':
+        return Icons.restaurant_outlined;
+      case 'transit & commute':
+      case 'transit':
+      case 'commute':
+        return Icons.directions_subway_outlined;
+      case 'shopping':
+        return Icons.local_mall_outlined;
+      case 'rent & utilities':
+        return Icons.home_outlined;
+      case 'entertainment':
+        return Icons.movie_outlined;
+      case 'pet care':
+        return Icons.pets_outlined;
+      default:
+        return Icons.receipt_outlined;
+    }
   }
 
   void _onSubmit() {
@@ -77,7 +112,7 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
           : 'quick entry',
       amount: amount,
       isExpense: _isExpense,
-      icon: Icons.fastfood_outlined,
+      icon: _getCategoryIcon(_selectedCategory),
       group: TransactionGroup.today,
       timestamp: DateTime.now(),
     );
@@ -88,12 +123,11 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
 
     return Scaffold(
       backgroundColor: colors.surface,
       appBar: AppHeader(
-        title: 'Quick Add',
         showBack: true,
         onBack: () => Navigator.maybePop(context),
       ),
@@ -442,7 +476,7 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
     required String label,
     IconData? trailingIcon,
   }) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -476,7 +510,7 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
   }
 
   Widget _buildKeypadButton(String key) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
 
     return GestureDetector(
       onTap: () => _onKeyPress(key),
@@ -500,15 +534,17 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
   }
 
   void _showCategoryPicker() {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
     final categories = [
-      {'emoji': '🍔', 'name': 'burger king'},
-      {'emoji': '☕', 'name': 'coffee'},
+      {'emoji': '🏷️', 'name': 'general'},
       {'emoji': '🛒', 'name': 'groceries'},
-      {'emoji': '🚇', 'name': 'commute'},
-      {'emoji': '🐶', 'name': 'pet care'},
-      {'emoji': '🎬', 'name': 'entertainment'},
+      {'emoji': '☕', 'name': 'coffee & drinks'},
+      {'emoji': '🍽️', 'name': 'dining & food'},
+      {'emoji': '🚇', 'name': 'transit & commute'},
+      {'emoji': '🛍️', 'name': 'shopping'},
       {'emoji': '🏠', 'name': 'rent & utilities'},
+      {'emoji': '🎬', 'name': 'entertainment'},
+      {'emoji': '🐾', 'name': 'pet care'},
     ];
 
     showModalBottomSheet(

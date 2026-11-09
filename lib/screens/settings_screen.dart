@@ -26,7 +26,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -100,7 +100,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'pilu member',
+                          'billu member',
                           style: AppTypography.numericSm(colors.onSurface).copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -313,7 +313,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _buildSettingRow(
                   icon: Icons.cloud_sync_outlined,
                   title: 'encrypted cloud backup',
-                  subtitle: 'last synced today 09:15 am',
+                  subtitle: 'local only • tap to configure',
                   trailing: Icon(
                     Icons.chevron_right_rounded,
                     size: 20,
@@ -404,7 +404,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'pilu android v1.0.4 • build 2025.10',
+                      'billu android v1.0.4 • build 2025.10',
                       style: AppTypography.labelSubtle(colors.secondary),
                     ),
                   ],
@@ -431,7 +431,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required Widget trailing,
     VoidCallback? onTap,
   }) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
 
     return InkWell(
       onTap: onTap,
@@ -485,7 +485,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
 
     return GestureDetector(
       onTap: () => onChanged(!value),

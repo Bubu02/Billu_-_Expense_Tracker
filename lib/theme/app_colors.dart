@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Design tokens for the Pilu / Billu Monochrome Precision Wireframe system.
+/// Design tokens for the Billu Monochrome Precision Wireframe system.
 class AppColors {
   AppColors._();
 
@@ -47,7 +47,7 @@ class AppColors {
 
 /// ThemeExtension to access surface container tokens flexibly in widgets
 @immutable
-class PiluColorsExtension extends ThemeExtension<PiluColorsExtension> {
+class BilluColorsExtension extends ThemeExtension<BilluColorsExtension> {
   final Color surface;
   final Color surfaceDim;
   final Color surfaceBright;
@@ -65,7 +65,7 @@ class PiluColorsExtension extends ThemeExtension<PiluColorsExtension> {
   final Color outlineVariant;
   final Color error;
 
-  const PiluColorsExtension({
+  const BilluColorsExtension({
     required this.surface,
     required this.surfaceDim,
     required this.surfaceBright,
@@ -84,7 +84,7 @@ class PiluColorsExtension extends ThemeExtension<PiluColorsExtension> {
     required this.error,
   });
 
-  static const PiluColorsExtension light = PiluColorsExtension(
+  static const BilluColorsExtension light = BilluColorsExtension(
     surface: AppColors.lightSurface,
     surfaceDim: AppColors.lightSurfaceDim,
     surfaceBright: AppColors.lightSurfaceBright,
@@ -103,7 +103,7 @@ class PiluColorsExtension extends ThemeExtension<PiluColorsExtension> {
     error: AppColors.lightError,
   );
 
-  static const PiluColorsExtension dark = PiluColorsExtension(
+  static const BilluColorsExtension dark = BilluColorsExtension(
     surface: AppColors.darkSurface,
     surfaceDim: AppColors.darkSurfaceDim,
     surfaceBright: AppColors.darkSurfaceBright,
@@ -123,7 +123,7 @@ class PiluColorsExtension extends ThemeExtension<PiluColorsExtension> {
   );
 
   @override
-  PiluColorsExtension copyWith({
+  BilluColorsExtension copyWith({
     Color? surface,
     Color? surfaceDim,
     Color? surfaceBright,
@@ -141,7 +141,7 @@ class PiluColorsExtension extends ThemeExtension<PiluColorsExtension> {
     Color? outlineVariant,
     Color? error,
   }) {
-    return PiluColorsExtension(
+    return BilluColorsExtension(
       surface: surface ?? this.surface,
       surfaceDim: surfaceDim ?? this.surfaceDim,
       surfaceBright: surfaceBright ?? this.surfaceBright,
@@ -162,9 +162,9 @@ class PiluColorsExtension extends ThemeExtension<PiluColorsExtension> {
   }
 
   @override
-  PiluColorsExtension lerp(ThemeExtension<PiluColorsExtension>? other, double t) {
-    if (other is! PiluColorsExtension) return this;
-    return PiluColorsExtension(
+  BilluColorsExtension lerp(ThemeExtension<BilluColorsExtension>? other, double t) {
+    if (other is! BilluColorsExtension) return this;
+    return BilluColorsExtension(
       surface: Color.lerp(surface, other.surface, t)!,
       surfaceDim: Color.lerp(surfaceDim, other.surfaceDim, t)!,
       surfaceBright: Color.lerp(surfaceBright, other.surfaceBright, t)!,
@@ -186,8 +186,8 @@ class PiluColorsExtension extends ThemeExtension<PiluColorsExtension> {
 }
 
 extension BuildContextColors on BuildContext {
-  PiluColorsExtension get piluColors {
-    return Theme.of(this).extension<PiluColorsExtension>() ?? PiluColorsExtension.light;
+  BilluColorsExtension get billuColors {
+    return Theme.of(this).extension<BilluColorsExtension>() ?? BilluColorsExtension.light;
   }
 }
 

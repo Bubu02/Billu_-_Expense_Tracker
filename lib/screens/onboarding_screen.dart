@@ -20,7 +20,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
 
     return Scaffold(
       backgroundColor: colors.surface,
@@ -218,7 +218,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
                       textBaseline: TextBaseline.alphabetic,
                       children: [
                         Text(
-                          'pilu',
+                          'billu',
                           style: AppTypography.headlineLg(colors.primary).copyWith(
                             fontSize: 38,
                             fontWeight: FontWeight.w700,
@@ -339,7 +339,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
     required String text,
     required bool isInverted,
   }) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
     final isTapped = _activePillIndex == index;
 
     final bg = isInverted
@@ -359,7 +359,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
-        transform: Matrix4.identity()..scale(isTapped ? 1.1 : 1.0),
+        transform: Matrix4.diagonal3Values(
+          isTapped ? 1.1 : 1.0,
+          isTapped ? 1.1 : 1.0,
+          1.0,
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: bg,

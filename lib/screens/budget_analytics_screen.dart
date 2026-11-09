@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import '../models/budget_model.dart';
+import '../models/transaction_model.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../widgets/donut_chart_painter.dart';
 
 class BudgetAnalyticsScreen extends StatefulWidget {
-  const BudgetAnalyticsScreen({super.key});
+  final List<TransactionModel>? transactions;
+  final List<BudgetCategory>? categories;
+
+  const BudgetAnalyticsScreen({
+    super.key,
+    this.transactions,
+    this.categories,
+  });
 
   @override
   State<BudgetAnalyticsScreen> createState() => _BudgetAnalyticsScreenState();
@@ -16,8 +24,32 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final allCategories = widget.categories ?? BudgetCategory.sampleCategories;
+    final allTransactions = widget.transactions ?? TransactionModel.sampleData;
+    final totalSpent = allTransactions
+        .where((t) => t.isExpense)
+        .fold<double>(0.0, (sum, t) => sum + t.amount);
+
+    final categoryTotals = <String, double>{};
+    for (final tx in allTransactions) {
+      if (tx.isExpense) {
+        categoryTotals[tx.title] = (categoryTotals[tx.title] ?? 0.0) + tx.amount;
+      }
+    }
+
+    final segments = categoryTotals.entries.map((e) {
+      final pct = totalSpent > 0 ? e.value / totalSpent : 0.0;
+      return DonutSegment(
+        title: e.key,
+        percentage: pct,
+        amount: e.value,
+        lightColor: colors.primary,
+        darkColor: colors.primary,
+      );
+    }).toList();
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -90,7 +122,9 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '80% dining limit reached for october',
+                      allCategories.isEmpty
+                          ? 'no budget alerts • spending on track'
+                          : '${allCategories.first.title} cap active',
                       style: AppTypography.numericSm(colors.primary).copyWith(
                         fontWeight: FontWeight.w500,
                       ),
@@ -133,7 +167,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                       CustomPaint(
                         size: const Size(190, 190),
                         painter: DonutChartPainter(
-                          segments: DonutSegment.sampleSegments,
+                          segments: segments,
                           trackColor: colors.surfaceContainer,
                           isDark: isDark,
                         ),
@@ -142,7 +176,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'OCT TOTAL',
+                            'MONTH TOTAL',
                             style: AppTypography.labelCaps(colors.secondary).copyWith(
                               letterSpacing: 1.2,
                               fontWeight: FontWeight.w600,
@@ -150,7 +184,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '\$1,840',
+                            '\$${totalSpent.toInt()}',
                             style: AppTypography.displayCurrencyMobile(colors.primary).copyWith(
                               fontSize: 34,
                               fontWeight: FontWeight.w700,
@@ -158,7 +192,9 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'of \$2,400 cap',
+                            allCategories.isEmpty
+                                ? 'no budget cap'
+                                : 'of \$${allCategories.fold<double>(0.0, (s, c) => s + c.limit).toInt()} cap',
                             style: AppTypography.labelSubtle(colors.outline),
                           ),
                         ],
@@ -168,58 +204,70 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Category Proportional Legend Cards (2x2 Grid)
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 2.6,
-                  children: DonutSegment.sampleSegments.map((segment) {
-                    final color = isDark ? segment.darkColor : segment.lightColor;
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: colors.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(10),
+                // Category Proportional Legend Cards (2x2 Grid) or Placeholder
+                if (segments.isEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Center(
+                      child: Text(
+                        'no category breakdown available',
+                        style: AppTypography.labelSubtle(colors.onSurfaceVariant),
                       ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
+                    ),
+                  ),
+                ] else ...[
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 2.6,
+                    children: segments.map((segment) {
+                      final color = isDark ? segment.darkColor : segment.lightColor;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: colors.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  segment.title,
-                                  style: AppTypography.labelCaps(colors.onSurface),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  '${(segment.percentage * 100).toInt()}% · \$${segment.amount.toInt()}',
-                                  style: AppTypography.numericSm(colors.primary).copyWith(
-                                    fontSize: 11,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    segment.title,
+                                    style: AppTypography.labelCaps(colors.onSurface),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                              ],
+                                  Text(
+                                    '${(segment.percentage * 100).toInt()}% · \$${segment.amount.toInt()}',
+                                    style: AppTypography.numericSm(colors.primary).copyWith(
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
               ],
             ),
           ),
@@ -236,21 +284,58 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                 ),
               ),
               Text(
-                '4 active caps',
+                '${allCategories.length} active caps',
                 style: AppTypography.labelSubtle(colors.secondary),
               ),
             ],
           ),
           const SizedBox(height: 12),
 
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: BudgetCategory.sampleCategories.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final cat = BudgetCategory.sampleCategories[index];
-              final percent = cat.percentage;
+          if (allCategories.isEmpty) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+              decoration: BoxDecoration(
+                color: colors.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: colors.surfaceContainer,
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.pie_chart_outline_rounded,
+                    size: 38,
+                    color: colors.onSurfaceVariant.withValues(alpha: 0.45),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'NO ACTIVE CAPS',
+                    style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Budget limits and category logs will appear here',
+                    style: AppTypography.labelSubtle(colors.onSurfaceVariant),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: allCategories.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final cat = allCategories[index];
+                final percent = cat.percentage;
 
               return Container(
                 padding: const EdgeInsets.all(16),
@@ -349,7 +434,8 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
               );
             },
           ),
-          const SizedBox(height: 24),
+        ],
+        const SizedBox(height: 24),
         ],
       ),
     );

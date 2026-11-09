@@ -9,6 +9,7 @@ class DashboardScreen extends StatefulWidget {
   final VoidCallback onToggleMask;
   final VoidCallback? onSearchTap;
   final Function(TransactionModel)? onTransactionTap;
+  final List<TransactionModel>? transactions;
 
   const DashboardScreen({
     super.key,
@@ -16,6 +17,7 @@ class DashboardScreen extends StatefulWidget {
     required this.onToggleMask,
     this.onSearchTap,
     this.onTransactionTap,
+    this.transactions,
   });
 
   @override
@@ -29,13 +31,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final todayTransactions = TransactionModel.sampleData
+    final allTransactions = widget.transactions ?? TransactionModel.sampleData;
+    final totalExpense = allTransactions
+        .where((t) => t.isExpense)
+        .fold<double>(0.0, (sum, t) => sum + t.amount);
+
+    final todayTransactions = allTransactions
         .where((t) => t.group == TransactionGroup.today)
         .toList();
-    final yesterdayTransactions = TransactionModel.sampleData
+    final yesterdayTransactions = allTransactions
         .where((t) => t.group == TransactionGroup.yesterday)
         .toList();
 
@@ -173,7 +180,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text(
-                      widget.isMasked ? '\$••••••' : '\$301.95',
+                      widget.isMasked
+                          ? '\$••••••'
+                          : '\$${totalExpense.toStringAsFixed(2)}',
                       style: AppTypography.displayCurrencyMobile(colors.primary),
                     ),
                     const SizedBox(width: 6),
@@ -187,7 +196,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 // Baseline comparison
                 Text(
-                  '18% lower than previous 30-day baseline',
+                  allTransactions.isEmpty
+                      ? 'no spending recorded this period'
+                      : '${allTransactions.length} transaction${allTransactions.length == 1 ? '' : 's'} tracked',
                   style: AppTypography.labelSubtle(colors.onSurfaceVariant),
                 ),
                 const SizedBox(height: 20),
@@ -206,48 +217,49 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           gridLineColor: colors.outline,
                           pointColor: colors.primary,
                           isDark: isDark,
+                          hasData: allTransactions.isNotEmpty,
                         ),
                       ),
                     ),
 
-                    // Floating Tooltip on active curve point (approx 72% across)
-                    Positioned(
-                      top: 4,
-                      left: 190,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: colors.primary,
-                              borderRadius: BorderRadius.circular(9999),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.15),
-                                  blurRadius: 4,
+                    if (allTransactions.isNotEmpty)
+                      Positioned(
+                        top: 4,
+                        left: 190,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: colors.primary,
+                                borderRadius: BorderRadius.circular(9999),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.15),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                'today \$${todayTransactions.fold<double>(0.0, (s, t) => s + t.amount).toStringAsFixed(2)}',
+                                style: AppTypography.labelCaps(colors.onPrimary).copyWith(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                              ],
-                            ),
-                            child: Text(
-                              'today \$8.95',
-                              style: AppTypography.labelCaps(colors.onPrimary).copyWith(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ),
-                          Transform.rotate(
-                            angle: 0.785398, // 45 deg
-                            child: Container(
-                              width: 6,
-                              height: 6,
-                              color: colors.primary,
+                            Transform.rotate(
+                              angle: 0.785398, // 45 deg
+                              child: Container(
+                                width: 6,
+                                height: 6,
+                                color: colors.primary,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
                   ],
                 ),
 
@@ -346,7 +358,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '\$18.05 unallocated buffer remains',
+                          allTransactions.isEmpty
+                              ? 'all clear • no expenses yet'
+                              : '\$${(1000.0 - totalExpense).clamp(0.0, 99999.0).toStringAsFixed(2)} buffer remains',
                           style: AppTypography.labelSubtle(colors.onSurfaceVariant),
                         ),
                       ],
@@ -360,7 +374,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     borderRadius: BorderRadius.circular(9999),
                   ),
                   child: Text(
-                    '84%',
+                    allTransactions.isEmpty ? '100%' : '${((1.0 - (totalExpense / 1000.0).clamp(0.0, 1.0)) * 100).toInt()}%',
                     style: AppTypography.labelCaps(colors.onSurface).copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -371,22 +385,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Ledger: Today
-          _buildTransactionSection(
-            context,
-            title: 'today',
-            totalAmount: '—\$308.89',
-            transactions: todayTransactions,
-          ),
-          const SizedBox(height: 20),
-
-          // Ledger: Yesterday
-          _buildTransactionSection(
-            context,
-            title: 'yesterday',
-            totalAmount: '—\$42.10',
-            transactions: yesterdayTransactions,
-          ),
+          // Ledger Section
+          if (allTransactions.isEmpty) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+              decoration: BoxDecoration(
+                color: colors.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: colors.surfaceContainer,
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 38,
+                    color: colors.onSurfaceVariant.withValues(alpha: 0.45),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'NO RECENT ENTRIES',
+                    style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Tap the + button to log your first transaction',
+                    style: AppTypography.labelSubtle(colors.onSurfaceVariant),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            if (todayTransactions.isNotEmpty) ...[
+              _buildTransactionSection(
+                context,
+                title: 'today',
+                totalAmount: '—\$${todayTransactions.fold<double>(0.0, (s, t) => s + t.amount).toStringAsFixed(2)}',
+                transactions: todayTransactions,
+              ),
+              const SizedBox(height: 20),
+            ],
+            if (yesterdayTransactions.isNotEmpty) ...[
+              _buildTransactionSection(
+                context,
+                title: 'yesterday',
+                totalAmount: '—\$${yesterdayTransactions.fold<double>(0.0, (s, t) => s + t.amount).toStringAsFixed(2)}',
+                transactions: yesterdayTransactions,
+              ),
+              const SizedBox(height: 20),
+            ],
+            if (todayTransactions.isEmpty && yesterdayTransactions.isEmpty) ...[
+              _buildTransactionSection(
+                context,
+                title: 'earlier',
+                totalAmount: '—\$${allTransactions.fold<double>(0.0, (s, t) => s + t.amount).toStringAsFixed(2)}',
+                transactions: allTransactions,
+              ),
+            ],
+          ],
           const SizedBox(height: 32),
 
           // Subtle Receipt End Mark
@@ -394,7 +457,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               children: [
                 Text(
-                  'PILU LEDGER • SYNC 1M AGO',
+                  'BILLU LEDGER • OFFLINE VAULT',
                   style: AppTypography.labelCaps(colors.onSurfaceVariant.withValues(alpha: 0.6)).copyWith(
                     letterSpacing: 1.5,
                   ),
@@ -423,7 +486,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required String totalAmount,
     required List<TransactionModel> transactions,
   }) {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -534,7 +597,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _showTimeframeMenu() {
-    final colors = context.piluColors;
+    final colors = context.billuColors;
     showModalBottomSheet(
       context: context,
       backgroundColor: colors.surfaceContainerLowest,
