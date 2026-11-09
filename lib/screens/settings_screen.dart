@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/storage/storage_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 
@@ -23,6 +24,13 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _biometricUnlock = true;
   bool _localSmsParser = true;
+  String _userName = 'billu member';
+
+  @override
+  void initState() {
+    super.initState();
+    _userName = StorageService.instance.getUserName();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,7 +108,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'billu member',
+                          _userName,
                           style: AppTypography.numericSm(colors.onSurface).copyWith(
                             fontWeight: FontWeight.w600,
                           ),

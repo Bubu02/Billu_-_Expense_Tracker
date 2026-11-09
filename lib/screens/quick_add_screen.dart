@@ -14,9 +14,10 @@ class QuickAddScreen extends StatefulWidget {
 }
 
 class _QuickAddScreenState extends State<QuickAddScreen> {
-  bool _isExpense = true;
+  TransactionType _selectedType = TransactionType.expense;
   int _selectedDayIndex = 2; // today
   String _currentInput = '0';
+  String _expression = '';
   String _selectedCategory = 'general';
   String _categoryEmoji = '🏷️';
   final TextEditingController _noteController = TextEditingController();
@@ -45,27 +46,74 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
 
   void _onKeyPress(String key) {
     setState(() {
-      if (key == '.') {
+      if (key == 'C') {
+        _currentInput = '0';
+        _expression = '';
+      } else if (['+', '-', '×', '÷'].contains(key)) {
+        if (_currentInput != '0' && _currentInput.isNotEmpty) {
+          _expression += '$_currentInput $key ';
+          _currentInput = '0';
+        }
+      } else if (key == '=') {
+        _evaluateExpression();
+      } else if (key == '.') {
         if (!_currentInput.contains('.')) {
-          _currentInput += '.';
+          if (_currentInput == '0' || _currentInput.isEmpty) {
+            _currentInput = '0.';
+          } else {
+            _currentInput += '.';
+          }
         }
       } else {
+        // Number key
         if (_currentInput == '0') {
           _currentInput = key;
-        } else if (_currentInput.length < 9) {
+        } else if (_currentInput.length < 12) {
           _currentInput += key;
         }
       }
     });
   }
 
-  void _onBackspace() {
-    setState(() {
-      if (_currentInput.isNotEmpty) {
-        _currentInput = _currentInput.substring(0, _currentInput.length - 1);
-        if (_currentInput.isEmpty) _currentInput = '0';
+  void _evaluateExpression() {
+    if (_expression.isEmpty) return;
+
+    try {
+      String fullExpr = '$_expression$_currentInput';
+      fullExpr = fullExpr.replaceAll('×', '*').replaceAll('÷', '/');
+
+      // Simple expression evaluator
+      List<String> tokens = fullExpr.split(' ');
+      if (tokens.length < 3) return;
+
+      double result = double.parse(tokens[0]);
+
+      for (int i = 1; i < tokens.length - 1; i += 2) {
+        String operator = tokens[i];
+        double operand = double.parse(tokens[i + 1]);
+
+        switch (operator) {
+          case '+':
+            result += operand;
+            break;
+          case '-':
+            result -= operand;
+            break;
+          case '*':
+            result *= operand;
+            break;
+          case '/':
+            if (operand != 0) result /= operand;
+            break;
+        }
       }
-    });
+
+      _currentInput = result.toStringAsFixed(2).replaceAll(RegExp(r'\.?0+$'), '');
+      _expression = '';
+    } catch (e) {
+      _currentInput = '0';
+      _expression = '';
+    }
   }
 
   IconData _getCategoryIcon(String cat) {
@@ -111,7 +159,7 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
           ? _noteController.text.trim()
           : 'quick entry',
       amount: amount,
-      isExpense: _isExpense,
+      type: _selectedType,
       icon: _getCategoryIcon(_selectedCategory),
       group: TransactionGroup.today,
       timestamp: DateTime.now(),
@@ -159,7 +207,7 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
                     ),
                   ),
 
-                  // Expense / Income Segmented Toggle
+                  // Expense / Income / Transfer Segmented Toggle
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
@@ -170,36 +218,53 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         GestureDetector(
-                          onTap: () => setState(() => _isExpense = true),
+                          onTap: () => setState(() => _selectedType = TransactionType.expense),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                             decoration: BoxDecoration(
-                              color: _isExpense ? colors.primary : Colors.transparent,
+                              color: _selectedType == TransactionType.expense ? colors.primary : Colors.transparent,
                               borderRadius: BorderRadius.circular(9999),
                             ),
                             child: Text(
-                              'expenses',
+                              'expense',
                               style: AppTypography.labelCaps(
-                                _isExpense ? colors.onPrimary : colors.secondary,
-                              ),
+                                _selectedType == TransactionType.expense ? colors.onPrimary : colors.secondary,
+                              ).copyWith(fontSize: 11),
                             ),
                           ),
                         ),
                         GestureDetector(
-                          onTap: () => setState(() => _isExpense = false),
+                          onTap: () => setState(() => _selectedType = TransactionType.income),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                             decoration: BoxDecoration(
-                              color: !_isExpense ? colors.primary : Colors.transparent,
+                              color: _selectedType == TransactionType.income ? colors.primary : Colors.transparent,
                               borderRadius: BorderRadius.circular(9999),
                             ),
                             child: Text(
                               'income',
                               style: AppTypography.labelCaps(
-                                !_isExpense ? colors.onPrimary : colors.secondary,
-                              ),
+                                _selectedType == TransactionType.income ? colors.onPrimary : colors.secondary,
+                              ).copyWith(fontSize: 11),
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => setState(() => _selectedType = TransactionType.transfer),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _selectedType == TransactionType.transfer ? colors.primary : Colors.transparent,
+                              borderRadius: BorderRadius.circular(9999),
+                            ),
+                            child: Text(
+                              'transfer',
+                              style: AppTypography.labelCaps(
+                                _selectedType == TransactionType.transfer ? colors.onPrimary : colors.secondary,
+                              ).copyWith(fontSize: 11),
                             ),
                           ),
                         ),
@@ -282,24 +347,37 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Active Amount Display
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
+              // Active Amount Display with Expression
+              Column(
                 children: [
-                  Text(
-                    '\$$_currentInput',
-                    style: AppTypography.displayCurrencyMobile(colors.onSurface).copyWith(
-                      fontSize: 44,
-                      fontWeight: FontWeight.w700,
+                  if (_expression.isNotEmpty)
+                    Text(
+                      _expression,
+                      style: AppTypography.bodyMd(colors.secondary).copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w400,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Container(
-                    width: 2.5,
-                    height: 32,
-                    color: colors.primary,
+                  if (_expression.isNotEmpty) const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        '\$$_currentInput',
+                        style: AppTypography.displayCurrencyMobile(colors.onSurface).copyWith(
+                          fontSize: 44,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Container(
+                        width: 2.5,
+                        height: 32,
+                        color: colors.primary,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -416,32 +494,64 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
               ),
               const SizedBox(height: 16),
 
-              // 4x3 Numeric Keypad
+              // Calculator Keypad (4x5 grid)
               SizedBox(
-                width: 290,
+                width: 320,
                 child: Column(
                   children: [
-                    _buildKeypadRow(['1', '2', '3']),
-                    const SizedBox(height: 12),
-                    _buildKeypadRow(['4', '5', '6']),
-                    const SizedBox(height: 12),
-                    _buildKeypadRow(['7', '8', '9']),
-                    const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildKeypadButton('.'),
-                        _buildKeypadButton('0'),
+                        _buildCalcButton('7'),
+                        _buildCalcButton('8'),
+                        _buildCalcButton('9'),
+                        _buildCalcButton('÷', isOperator: true),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildCalcButton('4'),
+                        _buildCalcButton('5'),
+                        _buildCalcButton('6'),
+                        _buildCalcButton('×', isOperator: true),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildCalcButton('1'),
+                        _buildCalcButton('2'),
+                        _buildCalcButton('3'),
+                        _buildCalcButton('-', isOperator: true),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildCalcButton('C', isClear: true),
+                        _buildCalcButton('0'),
+                        _buildCalcButton('.'),
+                        _buildCalcButton('+', isOperator: true),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildCalcButton('=', isEquals: true, width: 230),
                         // Submit Check Button
                         GestureDetector(
                           onTap: _onSubmit,
-                          onLongPress: _onBackspace,
                           child: Container(
-                            width: 64,
-                            height: 64,
+                            width: 74,
+                            height: 56,
                             decoration: BoxDecoration(
                               color: colors.primary,
-                              shape: BoxShape.circle,
+                              borderRadius: BorderRadius.circular(12),
                               boxShadow: [
                                 BoxShadow(
                                   color: colors.primary.withValues(alpha: 0.25),
@@ -502,30 +612,43 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
     );
   }
 
-  Widget _buildKeypadRow(List<String> keys) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: keys.map((k) => _buildKeypadButton(k)).toList(),
-    );
-  }
-
-  Widget _buildKeypadButton(String key) {
+  Widget _buildCalcButton(
+    String key, {
+    bool isOperator = false,
+    bool isClear = false,
+    bool isEquals = false,
+    double width = 74,
+  }) {
     final colors = context.billuColors;
+
+    Color bgColor;
+    Color textColor;
+
+    if (isClear) {
+      bgColor = colors.error.withValues(alpha: 0.15);
+      textColor = colors.error;
+    } else if (isOperator || isEquals) {
+      bgColor = colors.primary.withValues(alpha: 0.15);
+      textColor = colors.primary;
+    } else {
+      bgColor = colors.surfaceContainer;
+      textColor = colors.onSurface;
+    }
 
     return GestureDetector(
       onTap: () => _onKeyPress(key),
       child: Container(
-        width: 64,
-        height: 64,
+        width: width,
+        height: 56,
         decoration: BoxDecoration(
-          color: colors.surfaceContainer,
-          shape: BoxShape.circle,
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
         ),
         alignment: Alignment.center,
         child: Text(
           key,
-          style: AppTypography.headlineMd(colors.onSurface).copyWith(
-            fontSize: 22,
+          style: AppTypography.headlineMd(textColor).copyWith(
+            fontSize: isEquals ? 26 : 22,
             fontWeight: FontWeight.w600,
           ),
         ),

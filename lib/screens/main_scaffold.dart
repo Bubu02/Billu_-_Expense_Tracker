@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/storage/storage_service.dart';
 import '../models/account_model.dart';
 import '../models/budget_model.dart';
 import '../models/transaction_model.dart';
@@ -29,9 +30,24 @@ class _MainScaffoldState extends State<MainScaffold> {
   int _currentIndex = 0;
   bool _isMasked = false;
 
-  final List<TransactionModel> _transactions = [];
-  final List<AccountModel> _accounts = [];
+  List<TransactionModel> _transactions = [];
+  List<AccountModel> _accounts = [];
   final List<BudgetCategory> _budgetCategories = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPersistedData();
+  }
+
+  Future<void> _loadPersistedData() async {
+    final storage = StorageService.instance;
+    setState(() {
+      _transactions = storage.getTransactions();
+      _accounts = storage.getAccounts();
+      _isMasked = storage.isMasked();
+    });
+  }
 
   void _onQuickAdd() {
     Navigator.push(
@@ -43,6 +59,7 @@ class _MainScaffoldState extends State<MainScaffold> {
               _transactions.insert(0, newTx);
               _currentIndex = 0;
             });
+            StorageService.instance.saveTransactions(_transactions);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Added ${newTx.title}: ${newTx.formattedAmount}'),
@@ -75,13 +92,17 @@ class _MainScaffoldState extends State<MainScaffold> {
           setState(() {
             _accounts.add(newAcc);
           });
+          StorageService.instance.saveAccounts(_accounts);
         },
       ),
       SettingsScreen(
         isDarkTheme: widget.isDarkTheme,
         onThemeChanged: widget.onThemeChanged,
         isMasked: _isMasked,
-        onMaskChanged: (val) => setState(() => _isMasked = val),
+        onMaskChanged: (val) {
+          setState(() => _isMasked = val);
+          StorageService.instance.setMasked(val);
+        },
       ),
     ];
 

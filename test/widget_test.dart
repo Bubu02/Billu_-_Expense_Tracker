@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:billu_expense_tracker/core/storage/storage_service.dart';
 import 'package:billu_expense_tracker/main.dart';
 import 'package:billu_expense_tracker/screens/onboarding_screen.dart';
 import 'package:billu_expense_tracker/screens/main_scaffold.dart';
@@ -10,6 +12,12 @@ import 'package:billu_expense_tracker/screens/wallets_screen.dart';
 import 'package:billu_expense_tracker/screens/settings_screen.dart';
 
 void main() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await StorageService.instance.init(forceRefresh: true);
+    await StorageService.instance.clearAll();
+  });
+
   testWidgets('Billu app complete flow: onboarding, dashboard, tabs, quick-add, and theme toggle',
       (WidgetTester tester) async {
     // Increase test surface height so scrollable/keypad widgets fit on screen
@@ -27,8 +35,13 @@ void main() {
     expect(find.text('get started'), findsOneWidget);
     expect(find.text('your minimal budgeting app'), findsOneWidget);
 
-    // 3. Tap 'get started' to navigate to MainScaffold
+    // 3. Tap 'get started' to prompt for username, enter name, and continue to MainScaffold
     await tester.tap(find.text('get started'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Welcome to billu'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Satya');
+    await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
     expect(find.byType(MainScaffold), findsOneWidget);
@@ -68,7 +81,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(SettingsScreen), findsOneWidget);
     expect(find.text('settings'), findsOneWidget);
-    expect(find.text('billu member'), findsOneWidget);
+    expect(find.text('Satya'), findsOneWidget);
 
     // 8. Test Quick Add Navigation (Floating '+' button)
     await tester.tap(find.byIcon(Icons.add_rounded));
@@ -104,8 +117,13 @@ void main() {
     await tester.pumpWidget(const BilluApp());
     await tester.pumpAndSettle();
 
-    // Navigate past onboarding
+    // Navigate past onboarding by entering username
     await tester.tap(find.text('get started'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Welcome to billu'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Satya');
+    await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
     // Verify header has logo 'billu' and NO page name after it
@@ -150,6 +168,47 @@ void main() {
     expect(find.text('NO ACTIVE VAULTS'), findsNothing);
     expect(find.text('Checking Account'), findsOneWidget);
     expect(find.text('ACTIVE VAULTS (1)'), findsOneWidget);
+  });
+
+  testWidgets('Data persists across app relaunch: onboarding skipped, transactions & user profile preserved',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    // Initial launch: complete onboarding with name
+    await tester.pumpWidget(const BilluApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('get started'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Satya Prakash');
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    // Add a transaction
+    await tester.tap(find.byIcon(Icons.add_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(GestureDetector, '5'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.check_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('\$5.00'), findsOneWidget);
+
+    // Simulate relaunching the app (re-pump BilluApp widget)
+    await tester.pumpWidget(const BilluApp());
+    await tester.pumpAndSettle();
+
+    // Onboarding should NOT show again; MainScaffold should be loaded directly
+    expect(find.byType(OnboardingScreen), findsNothing);
+    expect(find.byType(MainScaffold), findsOneWidget);
+    expect(find.text('\$5.00'), findsOneWidget);
+
+    // Check Settings has the saved username
+    await tester.tap(find.text('setup'));
+    await tester.pumpAndSettle();
+    expect(find.text('Satya Prakash'), findsOneWidget);
   });
 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/storage/storage_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../widgets/constellation_painter.dart';
@@ -17,6 +18,99 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerProviderStateMixin {
   int? _activePillIndex;
+  final _usernameController = TextEditingController();
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    super.dispose();
+  }
+
+  void _showUsernameDialog() {
+    final colors = context.billuColors;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: colors.surfaceContainerLowest,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Welcome to billu',
+          style: AppTypography.headlineMd(colors.onSurface).copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'What should we call you?',
+              style: AppTypography.bodyMd(colors.onSurfaceVariant),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _usernameController,
+              autofocus: true,
+              style: AppTypography.bodyMd(colors.onSurface),
+              decoration: InputDecoration(
+                hintText: 'Enter your name',
+                hintStyle: AppTypography.bodyMd(colors.onSurfaceVariant.withValues(alpha: 0.5)),
+                filled: true,
+                fillColor: colors.surfaceContainer,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+              textCapitalization: TextCapitalization.words,
+              onSubmitted: (_) => _completeOnboarding(),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: Text('Cancel', style: AppTypography.bodyMd(colors.onSurfaceVariant)),
+          ),
+          ElevatedButton(
+            onPressed: _completeOnboarding,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colors.primary,
+              foregroundColor: colors.onPrimary,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text('Continue', style: AppTypography.bodyMd(colors.onPrimary).copyWith(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _completeOnboarding() async {
+    final name = _usernameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your name')),
+      );
+      return;
+    }
+
+    await StorageService.instance.setUserName(name);
+    await StorageService.instance.setOnboardingCompleted(true);
+
+    if (mounted) {
+      Navigator.pop(context);
+      widget.onGetStarted();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -248,7 +342,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
                       width: double.infinity,
                       height: 54,
                       child: ElevatedButton(
-                        onPressed: widget.onGetStarted,
+                        onPressed: _showUsernameDialog,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: colors.primary,
                           foregroundColor: colors.onPrimary,
