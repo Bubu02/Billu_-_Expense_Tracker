@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../core/storage/storage_service.dart';
 import '../models/account_model.dart';
 import '../models/transaction_model.dart';
 import '../theme/app_colors.dart';
@@ -30,6 +29,7 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
   String _selectedCategory = 'General';
   String _categoryEmoji = '🏷️';
   String? _selectedAccountId;
+  String? _toAccountId; // Destination account for transfers
   final TextEditingController _noteController = TextEditingController();
 
   @override
@@ -38,6 +38,10 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
     // Select first account by default
     if (widget.accounts != null && widget.accounts!.isNotEmpty) {
       _selectedAccountId = widget.accounts!.first.id;
+      // Default toAccount to second account if available
+      if (widget.accounts!.length > 1) {
+        _toAccountId = widget.accounts![1].id;
+      }
     }
   }
 
@@ -170,6 +174,22 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
       return;
     }
 
+    // Validate transfer: must have two different accounts
+    if (_selectedType == TransactionType.transfer) {
+      if (_selectedAccountId == null || _toAccountId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select both From and To accounts')),
+        );
+        return;
+      }
+      if (_selectedAccountId == _toAccountId) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('From and To accounts must be different')),
+        );
+        return;
+      }
+    }
+
     // Combine selected date with current time
     final now = DateTime.now();
     final transactionTimestamp = DateTime(
@@ -181,28 +201,71 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
       now.second,
     );
 
+    // Resolve account names for transfer display
+    String txTitle;
+    String txSubtitle;
+    IconData txIcon;
+
+    if (_selectedType == TransactionType.transfer) {
+      final fromName = _getAccountName(_selectedAccountId);
+      final toName = _getAccountName(_toAccountId);
+      txTitle = 'Transfer';
+      txSubtitle = '$fromName → $toName';
+      txIcon = Icons.swap_horiz_rounded;
+    } else {
+      txTitle = _selectedCategory;
+      txSubtitle = _noteController.text.trim().isNotEmpty
+          ? _noteController.text.trim()
+          : 'Quick Entry';
+      txIcon = _getCategoryIcon(_selectedCategory);
+    }
+
     final newTx = TransactionModel(
       id: 'tx-${DateTime.now().millisecondsSinceEpoch}',
-      title: _selectedCategory,
-      subtitle: _noteController.text.trim().isNotEmpty
-          ? _noteController.text.trim()
-          : 'Quick Entry',
+      title: txTitle,
+      subtitle: txSubtitle,
       amount: amount,
       type: _selectedType,
-      icon: _getCategoryIcon(_selectedCategory),
+      icon: txIcon,
       group: TransactionModel.getGroupFromTimestamp(transactionTimestamp),
       timestamp: transactionTimestamp,
       note: _noteController.text.trim().isNotEmpty ? _noteController.text.trim() : null,
       accountId: _selectedAccountId,
+      toAccount: _selectedType == TransactionType.transfer ? _toAccountId : null,
     );
 
-    // Update account balance
-    if (_selectedAccountId != null && widget.onUpdateBalance != null) {
-      widget.onUpdateBalance!(_selectedAccountId!, amount, _selectedType == TransactionType.expense);
+    // Update account balances
+    if (widget.onUpdateBalance != null) {
+      switch (_selectedType) {
+        case TransactionType.expense:
+          if (_selectedAccountId != null) {
+            widget.onUpdateBalance!(_selectedAccountId!, amount, true); // deduct
+          }
+          break;
+        case TransactionType.income:
+          if (_selectedAccountId != null) {
+            widget.onUpdateBalance!(_selectedAccountId!, amount, false); // add
+          }
+          break;
+        case TransactionType.transfer:
+          if (_selectedAccountId != null) {
+            widget.onUpdateBalance!(_selectedAccountId!, amount, true); // deduct from source
+          }
+          if (_toAccountId != null) {
+            widget.onUpdateBalance!(_toAccountId!, amount, false); // add to destination
+          }
+          break;
+      }
     }
 
     widget.onAddTransaction?.call(newTx);
     Navigator.maybePop(context);
+  }
+
+  String _getAccountName(String? accountId) {
+    if (accountId == null || widget.accounts == null) return 'Unknown';
+    final acc = widget.accounts!.where((a) => a.id == accountId);
+    return acc.isNotEmpty ? acc.first.name : 'Unknown';
   }
 
   Future<void> _showDatePicker() async {
@@ -409,44 +472,67 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Category Selector Pill
-                    GestureDetector(
-                      onTap: _showCategoryPicker,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: colors.primary,
-                          borderRadius: BorderRadius.circular(9999),
-                          boxShadow: [
-                            BoxShadow(
-                              color: colors.primary.withValues(alpha: 0.2),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                    // Account Selector & Category/Transfer UI
+                    if (widget.accounts != null && widget.accounts!.isNotEmpty) ...[
+                      // From Account Selector (shown for all types)
+                      _buildAccountPill(
+                        label: _selectedType == TransactionType.transfer ? 'from' : (_selectedType == TransactionType.expense ? 'from' : 'to'),
+                        accountId: _selectedAccountId,
+                        onTap: () => _showAccountPicker(isFrom: true),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // To Account Selector (only for Transfer)
+                      if (_selectedType == TransactionType.transfer) ...[
+                        _buildAccountPill(
+                          label: 'to',
+                          accountId: _toAccountId,
+                          onTap: () => _showAccountPicker(isFrom: false),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(_categoryEmoji, style: const TextStyle(fontSize: 15)),
-                            const SizedBox(width: 6),
-                            Text(
-                              _selectedCategory,
-                              style: AppTypography.labelCaps(colors.onPrimary).copyWith(
-                                fontSize: 12,
-                                letterSpacing: 0.5,
+                        const SizedBox(height: 10),
+                      ],
+                    ],
+
+                    // Category Selector Pill (hidden for Transfer)
+                    if (_selectedType != TransactionType.transfer) ...[
+                      GestureDetector(
+                        onTap: _showCategoryPicker,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: colors.primary,
+                            borderRadius: BorderRadius.circular(9999),
+                            boxShadow: [
+                              BoxShadow(
+                                color: colors.primary.withValues(alpha: 0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 18,
-                              color: colors.onPrimary,
-                            ),
-                          ],
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(_categoryEmoji, style: const TextStyle(fontSize: 15)),
+                              const SizedBox(width: 6),
+                              Text(
+                                _selectedCategory,
+                                style: AppTypography.labelCaps(colors.onPrimary).copyWith(
+                                  fontSize: 12,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 18,
+                                color: colors.onPrimary,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 20),
 
                     // Note Field (Simple, Clean)
@@ -618,6 +704,151 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAccountPill({
+    required String label,
+    required String? accountId,
+    required VoidCallback onTap,
+  }) {
+    final colors = context.billuColors;
+    final accountName = _getAccountName(accountId);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainer,
+          borderRadius: BorderRadius.circular(9999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label.toUpperCase(),
+              style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
+                fontSize: 10,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              accountName,
+              style: AppTypography.bodyMd(colors.onSurface).copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 18,
+              color: colors.onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAccountPicker({required bool isFrom}) {
+    final colors = context.billuColors;
+    final accounts = widget.accounts ?? [];
+
+    // For the "To" account picker in transfer mode, filter out the currently selected "From" account
+    final filteredAccounts = isFrom
+        ? accounts
+        : accounts.where((a) => a.id != _selectedAccountId).toList();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.surfaceContainerLowest,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isFrom ? 'From Account' : 'To Account',
+                        style: AppTypography.headlineMd(colors.onSurface),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                ...filteredAccounts.map((acc) {
+                  final isSelected = isFrom
+                      ? acc.id == _selectedAccountId
+                      : acc.id == _toAccountId;
+                  return ListTile(
+                    leading: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? colors.primary.withValues(alpha: 0.15)
+                            : colors.surfaceContainer,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        acc.icon,
+                        size: 18,
+                        color: isSelected ? colors.primary : colors.onSurfaceVariant,
+                      ),
+                    ),
+                    title: Text(
+                      acc.name,
+                      style: AppTypography.bodyMd(colors.onSurface).copyWith(
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      ),
+                    ),
+                    subtitle: Text(
+                      acc.formattedBalance,
+                      style: AppTypography.numericSm(colors.onSurfaceVariant),
+                    ),
+                    trailing: isSelected
+                        ? Icon(Icons.check_rounded, size: 20, color: colors.primary)
+                        : null,
+                    onTap: () {
+                      setState(() {
+                        if (isFrom) {
+                          _selectedAccountId = acc.id;
+                          // If from and to are now the same, clear toAccountId
+                          if (_toAccountId == acc.id && _selectedType == TransactionType.transfer) {
+                            _toAccountId = accounts
+                                .where((a) => a.id != acc.id)
+                                .map((a) => a.id)
+                                .firstOrNull;
+                          }
+                        } else {
+                          _toAccountId = acc.id;
+                        }
+                      });
+                      Navigator.pop(context);
+                    },
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

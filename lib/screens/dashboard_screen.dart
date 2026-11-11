@@ -512,15 +512,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ...groupedTransactions.entries.map((entry) {
               final dateLabel = entry.key;
               final transactions = entry.value;
-              final dailyTotal = transactions.fold<double>(0.0, (sum, t) => sum + t.amount);
-
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildTransactionSection(
                     context,
                     title: dateLabel,
-                    totalAmount: '$currencySymbol${dailyTotal.toStringAsFixed(2)}',
                     transactions: transactions,
                   ),
                   const SizedBox(height: 20),
@@ -561,7 +558,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildTransactionSection(
     BuildContext context, {
     required String title,
-    required String totalAmount,
     required List<TransactionModel> transactions,
   }) {
     final colors = context.billuColors;
@@ -571,23 +567,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 8, left: 2, right: 2),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title.toUpperCase(),
-                style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              Text(
-                widget.isMasked ? '—\$•••' : totalAmount,
-                style: AppTypography.numericSm(colors.primary).copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+          child: Text(
+            title.toUpperCase(),
+            style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
+            ),
           ),
         ),
         Container(

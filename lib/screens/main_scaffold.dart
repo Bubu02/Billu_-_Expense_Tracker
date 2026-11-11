@@ -54,6 +54,7 @@ class _MainScaffoldState extends State<MainScaffold> {
       context,
       MaterialPageRoute(
         builder: (context) => QuickAddScreen(
+          accounts: _accounts,
           onAddTransaction: (newTx) {
             setState(() {
               _transactions.insert(0, newTx);
@@ -66,6 +67,18 @@ class _MainScaffoldState extends State<MainScaffold> {
                 behavior: SnackBarBehavior.floating,
               ),
             );
+          },
+          onUpdateBalance: (String accountId, double amount, bool isDeduct) {
+            setState(() {
+              final idx = _accounts.indexWhere((a) => a.id == accountId);
+              if (idx != -1) {
+                final acc = _accounts[idx];
+                _accounts[idx] = acc.copyWith(
+                  balance: isDeduct ? acc.balance - amount : acc.balance + amount,
+                );
+              }
+            });
+            StorageService.instance.saveAccounts(_accounts);
           },
         ),
       ),

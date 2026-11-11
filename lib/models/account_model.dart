@@ -62,6 +62,30 @@ class AccountModel {
     );
   }
 
+  AccountModel copyWith({
+    String? id,
+    String? name,
+    String? subtitle,
+    double? balance,
+    String? badgeText,
+    bool? isPrimaryBadge,
+    IconData? icon,
+    String? footerLeft,
+    String? footerRight,
+  }) {
+    return AccountModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      subtitle: subtitle ?? this.subtitle,
+      balance: balance ?? this.balance,
+      badgeText: badgeText ?? this.badgeText,
+      isPrimaryBadge: isPrimaryBadge ?? this.isPrimaryBadge,
+      icon: icon ?? this.icon,
+      footerLeft: footerLeft ?? this.footerLeft,
+      footerRight: footerRight ?? this.footerRight,
+    );
+  }
+
   static const List<AccountModel> sampleAccounts = [];
 }
 
