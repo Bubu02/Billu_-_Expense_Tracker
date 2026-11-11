@@ -22,75 +22,86 @@ class SparklinePainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // Scale factor for y-axis
-    final sy = h / 80.0;
+    // Define chart area with padding - baseline at very bottom
+    const chartTop = 15.0;
+    final baselineY = h - 2.0; // Base X-axis at bottom (spend = 0)
+    final chartHeight = baselineY - chartTop;
 
-    // 1. Draw dashed reference baseline (y = 56 * sy)
-    final dashPaint = Paint()
-      ..color = gridLineColor.withValues(alpha: 0.35)
+    // 1. Draw base X-axis (0 baseline) - continuous horizontal line at bottom
+    final baselinePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.24)
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
+    canvas.drawLine(Offset(0, baselineY), Offset(w, baselineY), baselinePaint);
 
-    _drawDashedLine(
-      canvas,
-      Offset(0, 56 * sy),
-      Offset(w, 56 * sy),
-      dashWidth: 4,
-      dashSpace: 4,
-      paint: dashPaint,
-    );
-
-    // 2. Draw secondary dashed guidance axis (y = 24 * sy)
+    // 2. Draw subtle upper reference guide lines
     final guidePaint = Paint()
-      ..color = gridLineColor.withValues(alpha: 0.2)
-      ..strokeWidth = 1.0
+      ..color = gridLineColor.withValues(alpha: 0.12)
+      ..strokeWidth = 0.5
       ..style = PaintingStyle.stroke;
 
+    // Upper grid lines at 25%, 50%, 75%
     _drawDashedLine(
       canvas,
-      Offset(0, 24 * sy),
-      Offset(w, 24 * sy),
-      dashWidth: 2,
-      dashSpace: 6,
+      Offset(0, chartTop + chartHeight * 0.25),
+      Offset(w, chartTop + chartHeight * 0.25),
+      dashWidth: 3,
+      dashSpace: 5,
+      paint: guidePaint,
+    );
+    _drawDashedLine(
+      canvas,
+      Offset(0, chartTop + chartHeight * 0.5),
+      Offset(w, chartTop + chartHeight * 0.5),
+      dashWidth: 3,
+      dashSpace: 5,
       paint: guidePaint,
     );
 
     if (!hasData || dataPoints.isEmpty) {
-      // Draw quiet baseline placeholder
+      // Draw flat line at baseline when no data
       final linePaint = Paint()
         ..color = lineColor.withValues(alpha: 0.25)
         ..strokeWidth = 1.5
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round;
-      canvas.drawLine(Offset(0, 56 * sy), Offset(w, 56 * sy), linePaint);
+      canvas.drawLine(Offset(0, baselineY), Offset(w, baselineY), linePaint);
       return;
     }
 
-    // 3. Draw line chart based on actual data points
+    // 3. Draw dynamic spending path with 0-baseline support
     final maxValue = dataPoints.reduce((a, b) => a > b ? a : b);
-    final minValue = dataPoints.reduce((a, b) => a < b ? a : b);
-    final range = maxValue - minValue;
 
-    // Normalize data to fit chart height (leaving padding top and bottom)
-    final chartTop = 10.0 * sy;
-    final chartBottom = 70.0 * sy;
-    final chartHeight = chartBottom - chartTop;
+    // Handle case where all values are 0
+    if (maxValue == 0) {
+      final linePaint = Paint()
+        ..color = lineColor
+        ..strokeWidth = 2.0
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(Offset(0, baselineY), Offset(w, baselineY), linePaint);
+      return;
+    }
 
-    List<Offset> points = [];
+    // Build path: flat at baseline for 0s, peak upward for positive values
+    final path = Path();
+    final List<Offset> points = [];
+
     for (int i = 0; i < dataPoints.length; i++) {
       final x = (i / (dataPoints.length - 1).clamp(1, double.infinity)) * w;
       double y;
-      if (range > 0) {
-        final normalized = (dataPoints[i] - minValue) / range;
-        y = chartBottom - (normalized * chartHeight);
+
+      if (dataPoints[i] == 0) {
+        y = baselineY; // Stay on baseline
       } else {
-        y = (chartTop + chartBottom) / 2;
+        final normalized = dataPoints[i] / maxValue; // 0.0 to 1.0
+        y = baselineY - (normalized * chartHeight * 0.85); // Peak upward
       }
+
       points.add(Offset(x, y));
     }
 
-    // Draw smooth path through points
-    final path = Path();
+    // Draw smooth path with quadratic bezier transitions
     if (points.isNotEmpty) {
       path.moveTo(points[0].dx, points[0].dy);
 
@@ -99,48 +110,58 @@ class SparklinePainter extends CustomPainter {
       } else if (points.length == 2) {
         path.lineTo(points[1].dx, points[1].dy);
       } else {
+        // Use quadratic bezier for smooth transitions
         for (int i = 0; i < points.length - 1; i++) {
-          final p0 = i > 0 ? points[i - 1] : points[i];
           final p1 = points[i];
           final p2 = points[i + 1];
-          final p3 = i < points.length - 2 ? points[i + 2] : p2;
 
-          final cp1x = p1.dx + (p2.dx - p0.dx) / 6;
-          final cp1y = p1.dy + (p2.dy - p0.dy) / 6;
-          final cp2x = p2.dx - (p3.dx - p1.dx) / 6;
-          final cp2y = p2.dy - (p3.dy - p1.dy) / 6;
+          // Control point is midpoint slightly adjusted
+          final cpX = (p1.dx + p2.dx) / 2;
+          final cpY = (p1.dy + p2.dy) / 2;
 
-          path.cubicTo(cp1x, cp1y, cp2x, cp2y, p2.dx, p2.dy);
+          path.quadraticBezierTo(cpX, cpY, p2.dx, p2.dy);
         }
       }
     }
 
     final linePaint = Paint()
-      ..color = lineColor
-      ..strokeWidth = 2.25
+      ..color = Colors.white
+      ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
     canvas.drawPath(path, linePaint);
 
-    // 4. Draw active point indicator at last data point
-    if (points.isNotEmpty) {
-      final lastPoint = points.last;
-      final cx = lastPoint.dx;
-      final cy = lastPoint.dy;
+    // 4. Draw active point indicator at highest non-zero peak
+    if (points.isNotEmpty && maxValue > 0) {
+      // Find highest peak point
+      int peakIndex = 0;
+      double peakValue = dataPoints[0];
+      for (int i = 1; i < dataPoints.length; i++) {
+        if (dataPoints[i] > peakValue) {
+          peakValue = dataPoints[i];
+          peakIndex = i;
+        }
+      }
 
-      // Outer glow ring
-      final ringPaint = Paint()
-        ..color = pointColor.withValues(alpha: isDark ? 0.25 : 0.12)
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(cx, cy), 9.0, ringPaint);
+      if (peakValue > 0 && peakIndex < points.length) {
+        final peakPoint = points[peakIndex];
+        final cx = peakPoint.dx;
+        final cy = peakPoint.dy;
 
-      // Inner solid point
-      final pointPaint = Paint()
-        ..color = pointColor
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(cx, cy), 4.5, pointPaint);
+        // Outer glow ring
+        final ringPaint = Paint()
+          ..color = pointColor.withValues(alpha: isDark ? 0.25 : 0.12)
+          ..style = PaintingStyle.fill;
+        canvas.drawCircle(Offset(cx, cy), 10.0, ringPaint);
+
+        // Inner solid point
+        final pointPaint = Paint()
+          ..color = pointColor
+          ..style = PaintingStyle.fill;
+        canvas.drawCircle(Offset(cx, cy), 5.0, pointPaint);
+      }
     }
   }
 

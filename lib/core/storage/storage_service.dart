@@ -15,6 +15,8 @@ class StorageService {
   static const String _keyMasked = 'billu_masked';
   static const String _keyTransactions = 'billu_transactions_json';
   static const String _keyAccounts = 'billu_accounts_json';
+  static const String _keyCurrencyCode = 'billu_currency_code';
+  static const String _keyCurrencySymbol = 'billu_currency_symbol';
 
   SharedPreferences? _prefs;
 
@@ -75,6 +77,22 @@ class StorageService {
   Future<void> setMasked(bool masked) async {
     await init();
     await _prefs?.setBool(_keyMasked, masked);
+  }
+
+  // ── Currency ────────────────────────────────────────────────────────────
+
+  String getCurrencySymbol() {
+    return _prefs?.getString(_keyCurrencySymbol) ?? '\$';
+  }
+
+  String getCurrencyCode() {
+    return _prefs?.getString(_keyCurrencyCode) ?? 'USD';
+  }
+
+  Future<void> setCurrency(String symbol, String code) async {
+    await init();
+    await _prefs?.setString(_keyCurrencySymbol, symbol);
+    await _prefs?.setString(_keyCurrencyCode, code);
   }
 
   // ── Transactions ────────────────────────────────────────────────────────

@@ -15,6 +15,8 @@ class TransactionModel {
   final DateTime timestamp;
   final String? fromAccount; // For transfers
   final String? toAccount; // For transfers
+  final String? note; // Optional note field
+  final String? accountId; // Account associated with this transaction
 
   const TransactionModel({
     required this.id,
@@ -27,6 +29,8 @@ class TransactionModel {
     required this.timestamp,
     this.fromAccount,
     this.toAccount,
+    this.note,
+    this.accountId,
   });
 
   // Legacy compatibility
@@ -60,6 +64,8 @@ class TransactionModel {
       'timestamp': timestamp.toIso8601String(),
       'fromAccount': fromAccount,
       'toAccount': toAccount,
+      'note': note,
+      'accountId': accountId,
     };
   }
 
@@ -111,7 +117,25 @@ class TransactionModel {
           : DateTime.now(),
       fromAccount: map['fromAccount'] as String?,
       toAccount: map['toAccount'] as String?,
+      note: map['note'] as String?,
+      accountId: map['accountId'] as String?,
     );
+  }
+
+  // Helper to determine group from timestamp
+  static TransactionGroup getGroupFromTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final txDate = DateTime(timestamp.year, timestamp.month, timestamp.day);
+
+    if (txDate == today) {
+      return TransactionGroup.today;
+    } else if (txDate == yesterday) {
+      return TransactionGroup.yesterday;
+    } else {
+      return TransactionGroup.earlier;
+    }
   }
 
   static List<TransactionModel> sampleData = [];

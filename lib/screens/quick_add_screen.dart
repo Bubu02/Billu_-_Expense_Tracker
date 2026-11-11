@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../core/storage/storage_service.dart';
+import '../models/account_model.dart';
 import '../models/transaction_model.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
@@ -6,8 +8,15 @@ import '../widgets/app_header.dart';
 
 class QuickAddScreen extends StatefulWidget {
   final Function(TransactionModel)? onAddTransaction;
+  final List<AccountModel>? accounts;
+  final Function(String accountId, double amount, bool isExpense)? onUpdateBalance;
 
-  const QuickAddScreen({super.key, this.onAddTransaction});
+  const QuickAddScreen({
+    super.key,
+    this.onAddTransaction,
+    this.accounts,
+    this.onUpdateBalance,
+  });
 
   @override
   State<QuickAddScreen> createState() => _QuickAddScreenState();
@@ -15,27 +24,21 @@ class QuickAddScreen extends StatefulWidget {
 
 class _QuickAddScreenState extends State<QuickAddScreen> {
   TransactionType _selectedType = TransactionType.expense;
-  int _selectedDayIndex = 2; // today
-  String _currentInput = '0';
+  DateTime _selectedDate = DateTime.now();
+  String _currentInput = '';
   String _expression = '';
-  String _selectedCategory = 'general';
+  String _selectedCategory = 'General';
   String _categoryEmoji = '🏷️';
+  String? _selectedAccountId;
   final TextEditingController _noteController = TextEditingController();
-
-  late final List<Map<String, String>> _dateStrip;
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    const weekdays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-    _dateStrip = List.generate(5, (i) {
-      final d = now.subtract(Duration(days: 2 - i));
-      return {
-        'day': d.day.toString(),
-        'weekday': weekdays[d.weekday - 1],
-      };
-    });
+    // Select first account by default
+    if (widget.accounts != null && widget.accounts!.isNotEmpty) {
+      _selectedAccountId = widget.accounts!.first.id;
+    }
   }
 
   @override
@@ -44,21 +47,34 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
     super.dispose();
   }
 
+  // Generate 5-day date strip centered on selected date
+  List<Map<String, dynamic>> _getDateStrip() {
+    const weekdays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    return List.generate(5, (i) {
+      final d = _selectedDate.subtract(Duration(days: 2 - i));
+      return {
+        'date': d,
+        'day': d.day.toString(),
+        'weekday': weekdays[d.weekday - 1],
+      };
+    });
+  }
+
   void _onKeyPress(String key) {
     setState(() {
       if (key == 'C') {
-        _currentInput = '0';
+        _currentInput = '';
         _expression = '';
       } else if (['+', '-', '×', '÷'].contains(key)) {
-        if (_currentInput != '0' && _currentInput.isNotEmpty) {
+        if (_currentInput.isNotEmpty) {
           _expression += '$_currentInput $key ';
-          _currentInput = '0';
+          _currentInput = '';
         }
       } else if (key == '=') {
         _evaluateExpression();
       } else if (key == '.') {
         if (!_currentInput.contains('.')) {
-          if (_currentInput == '0' || _currentInput.isEmpty) {
+          if (_currentInput.isEmpty) {
             _currentInput = '0.';
           } else {
             _currentInput += '.';
@@ -66,9 +82,11 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
         }
       } else {
         // Number key
-        if (_currentInput == '0') {
-          _currentInput = key;
-        } else if (_currentInput.length < 12) {
+        if (_currentInput.isEmpty && key == '0') {
+          // Don't allow leading zeros
+          return;
+        }
+        if (_currentInput.length < 12) {
           _currentInput += key;
         }
       }
@@ -111,7 +129,7 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
       _currentInput = result.toStringAsFixed(2).replaceAll(RegExp(r'\.?0+$'), '');
       _expression = '';
     } catch (e) {
-      _currentInput = '0';
+      _currentInput = '';
       _expression = '';
     }
   }
@@ -152,26 +170,77 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
       return;
     }
 
+    // Combine selected date with current time
+    final now = DateTime.now();
+    final transactionTimestamp = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      now.hour,
+      now.minute,
+      now.second,
+    );
+
     final newTx = TransactionModel(
       id: 'tx-${DateTime.now().millisecondsSinceEpoch}',
       title: _selectedCategory,
       subtitle: _noteController.text.trim().isNotEmpty
           ? _noteController.text.trim()
-          : 'quick entry',
+          : 'Quick Entry',
       amount: amount,
       type: _selectedType,
       icon: _getCategoryIcon(_selectedCategory),
-      group: TransactionGroup.today,
-      timestamp: DateTime.now(),
+      group: TransactionModel.getGroupFromTimestamp(transactionTimestamp),
+      timestamp: transactionTimestamp,
+      note: _noteController.text.trim().isNotEmpty ? _noteController.text.trim() : null,
+      accountId: _selectedAccountId,
     );
+
+    // Update account balance
+    if (_selectedAccountId != null && widget.onUpdateBalance != null) {
+      widget.onUpdateBalance!(_selectedAccountId!, amount, _selectedType == TransactionType.expense);
+    }
 
     widget.onAddTransaction?.call(newTx);
     Navigator.maybePop(context);
   }
 
+  Future<void> _showDatePicker() async {
+    final colors = context.billuColors;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: ColorScheme.dark(
+              primary: colors.primary,
+              onPrimary: colors.onPrimary,
+              surface: colors.surfaceContainerLowest,
+              onSurface: colors.onSurface,
+            ),
+            dialogTheme: DialogThemeData(
+              backgroundColor: colors.surfaceContainerLowest,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.billuColors;
+    final dateStrip = _getDateStrip();
 
     return Scaffold(
       backgroundColor: colors.surface,
@@ -180,374 +249,270 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
         onBack: () => Navigator.maybePop(context),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          child: Column(
-            children: [
-              // Top Segmented Controls Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.maybePop(context),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: colors.surfaceContainer,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(
-                        Icons.close_rounded,
-                        size: 20,
-                        color: colors.onSurface,
-                      ),
-                    ),
-                  ),
-
-                  // Expense / Income / Transfer Segmented Toggle
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: colors.surfaceContainer,
-                      borderRadius: BorderRadius.circular(9999),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+        child: Column(
+          children: [
+            // Top Section (scrollable if needed)
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Column(
+                  children: [
+                    // Top Controls Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         GestureDetector(
-                          onTap: () => setState(() => _selectedType = TransactionType.expense),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          onTap: () => Navigator.maybePop(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
                             decoration: BoxDecoration(
-                              color: _selectedType == TransactionType.expense ? colors.primary : Colors.transparent,
-                              borderRadius: BorderRadius.circular(9999),
+                              color: colors.surfaceContainer,
+                              shape: BoxShape.circle,
                             ),
-                            child: Text(
-                              'expense',
-                              style: AppTypography.labelCaps(
-                                _selectedType == TransactionType.expense ? colors.onPrimary : colors.secondary,
-                              ).copyWith(fontSize: 11),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 20,
+                              color: colors.onSurface,
                             ),
                           ),
                         ),
-                        GestureDetector(
-                          onTap: () => setState(() => _selectedType = TransactionType.income),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: _selectedType == TransactionType.income ? colors.primary : Colors.transparent,
-                              borderRadius: BorderRadius.circular(9999),
-                            ),
-                            child: Text(
-                              'income',
-                              style: AppTypography.labelCaps(
-                                _selectedType == TransactionType.income ? colors.onPrimary : colors.secondary,
-                              ).copyWith(fontSize: 11),
-                            ),
+
+                        // Expense / Income / Transfer Toggle
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: colors.surfaceContainer,
+                            borderRadius: BorderRadius.circular(9999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildTypeSegment('expense', TransactionType.expense),
+                              _buildTypeSegment('income', TransactionType.income),
+                              _buildTypeSegment('transfer', TransactionType.transfer),
+                            ],
                           ),
                         ),
-                        GestureDetector(
-                          onTap: () => setState(() => _selectedType = TransactionType.transfer),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: _selectedType == TransactionType.transfer ? colors.primary : Colors.transparent,
-                              borderRadius: BorderRadius.circular(9999),
+
+                        const SizedBox(width: 40), // Balance right side
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Horizontal Interactive Date Strip
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        ...dateStrip.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final item = entry.value;
+                          final itemDate = item['date'] as DateTime;
+                          final isSelected = idx == 2; // Middle one is always selected
+
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedDate = itemDate;
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isSelected ? 16 : 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected ? colors.primary : Colors.transparent,
+                                borderRadius: BorderRadius.circular(9999),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    item['day']!,
+                                    style: AppTypography.numericSm(
+                                      isSelected ? colors.onPrimary : colors.secondary,
+                                    ).copyWith(fontWeight: FontWeight.w600),
+                                  ),
+                                  Text(
+                                    item['weekday']!,
+                                    style: AppTypography.labelCaps(
+                                      isSelected ? colors.onPrimary : colors.secondary,
+                                    ).copyWith(fontSize: 10),
+                                  ),
+                                ],
+                              ),
                             ),
-                            child: Text(
-                              'transfer',
-                              style: AppTypography.labelCaps(
-                                _selectedType == TransactionType.transfer ? colors.onPrimary : colors.secondary,
-                              ).copyWith(fontSize: 11),
+                          );
+                        }),
+                        // Calendar Icon Button
+                        GestureDetector(
+                          onTap: _showDatePicker,
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: colors.surfaceContainer,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              Icons.calendar_today_outlined,
+                              size: 16,
+                              color: colors.onSurface,
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 24),
 
-                  // Quick Mode / Currency
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: colors.surfaceContainer,
-                      shape: BoxShape.circle,
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      'USD',
-                      style: AppTypography.numericSm(colors.onSurface),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Horizontal Weekday Date Strip
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  ...List.generate(_dateStrip.length, (idx) {
-                    final item = _dateStrip[idx];
-                    final isSelected = idx == _selectedDayIndex;
-                    return GestureDetector(
-                      onTap: () => setState(() => _selectedDayIndex = idx),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isSelected ? 16 : 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected ? colors.primary : Colors.transparent,
-                          borderRadius: BorderRadius.circular(9999),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                    // Amount Display (Clean - No $ or USD)
+                    Column(
+                      children: [
+                        if (_expression.isNotEmpty) ...[
+                          Text(
+                            _expression,
+                            style: AppTypography.bodyMd(colors.secondary).copyWith(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                        ],
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Text(
-                              item['day']!,
-                              style: AppTypography.numericSm(
-                                isSelected ? colors.onPrimary : colors.secondary,
+                              _currentInput.isEmpty ? '0' : _currentInput,
+                              style: AppTypography.displayCurrencyMobile(
+                                _currentInput.isEmpty ? colors.onSurface.withValues(alpha: 0.3) : colors.onSurface,
+                              ).copyWith(
+                                fontSize: 48,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
+                            const SizedBox(width: 4),
+                            // Blinking cursor
+                            Container(
+                              width: 2.5,
+                              height: 40,
+                              color: colors.primary,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Category Selector Pill
+                    GestureDetector(
+                      onTap: _showCategoryPicker,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: colors.primary,
+                          borderRadius: BorderRadius.circular(9999),
+                          boxShadow: [
+                            BoxShadow(
+                              color: colors.primary.withValues(alpha: 0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(_categoryEmoji, style: const TextStyle(fontSize: 15)),
+                            const SizedBox(width: 6),
                             Text(
-                              item['weekday']!,
-                              style: AppTypography.labelCaps(
-                                isSelected ? colors.onPrimary : colors.secondary,
+                              _selectedCategory,
+                              style: AppTypography.labelCaps(colors.onPrimary).copyWith(
+                                fontSize: 12,
+                                letterSpacing: 0.5,
                               ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 18,
+                              color: colors.onPrimary,
                             ),
                           ],
                         ),
                       ),
-                    );
-                  }),
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: colors.surfaceContainer,
-                      shape: BoxShape.circle,
                     ),
-                    alignment: Alignment.center,
-                    child: Icon(
-                      Icons.calendar_today_outlined,
-                      size: 16,
-                      color: colors.onSurface,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                    const SizedBox(height: 20),
 
-              // Active Amount Display with Expression
-              Column(
-                children: [
-                  if (_expression.isNotEmpty)
-                    Text(
-                      _expression,
-                      style: AppTypography.bodyMd(colors.secondary).copyWith(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  if (_expression.isNotEmpty) const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                        '\$$_currentInput',
-                        style: AppTypography.displayCurrencyMobile(colors.onSurface).copyWith(
-                          fontSize: 44,
-                          fontWeight: FontWeight.w700,
+                    // Note Field (Simple, Clean)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: colors.outline.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      Container(
-                        width: 2.5,
-                        height: 32,
-                        color: colors.primary,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-
-              // Merchant / Category Selector Pill
-              GestureDetector(
-                onTap: _showCategoryPicker,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: colors.primary,
-                    borderRadius: BorderRadius.circular(9999),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors.primary.withValues(alpha: 0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(_categoryEmoji, style: const TextStyle(fontSize: 15)),
-                      const SizedBox(width: 6),
-                      Text(
-                        _selectedCategory,
-                        style: AppTypography.labelCaps(colors.onPrimary).copyWith(
-                          fontSize: 12,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 18,
-                        color: colors.onPrimary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Action Helpers Row: Split bill, Scan receipt, Cash/bank
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildActionChip(
-                      icon: Icons.bolt_rounded,
-                      label: 'split bill',
-                    ),
-                    const SizedBox(width: 8),
-                    _buildActionChip(
-                      icon: Icons.attach_file_rounded,
-                      label: 'scan receipt',
-                    ),
-                    const SizedBox(width: 8),
-                    _buildActionChip(
-                      icon: Icons.credit_card_rounded,
-                      label: 'cash / bank',
-                      trailingIcon: Icons.expand_more_rounded,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Note / Tag Input Row
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                decoration: BoxDecoration(
-                  color: colors.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(9999),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.edit_note_rounded,
-                      size: 20,
-                      color: colors.secondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
                       child: TextField(
                         controller: _noteController,
-                        style: AppTypography.bodyMd(colors.onSurface),
+                        style: AppTypography.bodyMd(colors.onSurface).copyWith(fontSize: 14),
                         decoration: InputDecoration(
-                          hintText: 'add note or #tags...',
-                          hintStyle: AppTypography.bodyMd(colors.secondary),
+                          hintText: 'add a note...',
+                          hintStyle: AppTypography.bodyMd(colors.secondary.withValues(alpha: 0.6)),
                           border: InputBorder.none,
                           isDense: true,
+                          contentPadding: EdgeInsets.zero,
                         ),
+                        maxLines: 1,
                       ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.tag_rounded,
-                        size: 18,
-                        color: colors.secondary,
-                      ),
-                      onPressed: () {
-                        _noteController.text += ' #personal';
-                      },
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+            ),
 
-              // Calculator Keypad (4x5 grid)
-              SizedBox(
-                width: 320,
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildCalcButton('7'),
-                        _buildCalcButton('8'),
-                        _buildCalcButton('9'),
-                        _buildCalcButton('÷', isOperator: true),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildCalcButton('4'),
-                        _buildCalcButton('5'),
-                        _buildCalcButton('6'),
-                        _buildCalcButton('×', isOperator: true),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildCalcButton('1'),
-                        _buildCalcButton('2'),
-                        _buildCalcButton('3'),
-                        _buildCalcButton('-', isOperator: true),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildCalcButton('C', isClear: true),
-                        _buildCalcButton('0'),
-                        _buildCalcButton('.'),
-                        _buildCalcButton('+', isOperator: true),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildCalcButton('=', isEquals: true, width: 230),
-                        // Submit Check Button
-                        GestureDetector(
+            // Calculator Keypad (Anchored to Bottom)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: colors.surface,
+                border: Border(
+                  top: BorderSide(
+                    color: colors.surfaceContainer,
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildKeypadRow(['7', '8', '9', '÷']),
+                  const SizedBox(height: 12),
+                  _buildKeypadRow(['4', '5', '6', '×']),
+                  const SizedBox(height: 12),
+                  _buildKeypadRow(['1', '2', '3', '-']),
+                  const SizedBox(height: 12),
+                  _buildKeypadRow(['C', '0', '.', '+']),
+                  const SizedBox(height: 12),
+                  // Bottom Row: Equals + Submit
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: _buildCalcButton('=', isEquals: true),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
                           onTap: _onSubmit,
                           child: Container(
-                            width: 74,
                             height: 56,
                             decoration: BoxDecoration(
                               color: colors.primary,
@@ -568,58 +533,59 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildActionChip({
-    required IconData icon,
-    required String label,
-    IconData? trailingIcon,
-  }) {
+  Widget _buildTypeSegment(String label, TransactionType type) {
     final colors = context.billuColors;
+    final isSelected = _selectedType == type;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(9999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: colors.onSurface),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: AppTypography.labelCaps(colors.onSurface),
-          ),
-          if (trailingIcon != null) ...[
-            const SizedBox(width: 2),
-            Icon(trailingIcon, size: 14, color: colors.secondary),
-          ],
-        ],
+    return GestureDetector(
+      onTap: () => setState(() => _selectedType = type),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? colors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(9999),
+        ),
+        child: Text(
+          label,
+          style: AppTypography.labelCaps(
+            isSelected ? colors.onPrimary : colors.secondary,
+          ).copyWith(fontSize: 11),
+        ),
       ),
     );
   }
 
-  Widget _buildCalcButton(
-    String key, {
-    bool isOperator = false,
-    bool isClear = false,
-    bool isEquals = false,
-    double width = 74,
-  }) {
+  Widget _buildKeypadRow(List<String> keys) {
+    return Row(
+      children: keys.asMap().entries.map((entry) {
+        final key = entry.value;
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(right: entry.key < keys.length - 1 ? 12 : 0),
+            child: _buildCalcButton(key),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildCalcButton(String key, {bool isEquals = false}) {
     final colors = context.billuColors;
+    final isOperator = ['+', '-', '×', '÷', '='].contains(key);
+    final isClear = key == 'C';
 
     Color bgColor;
     Color textColor;
@@ -638,7 +604,6 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
     return GestureDetector(
       onTap: () => _onKeyPress(key),
       child: Container(
-        width: width,
         height: 56,
         decoration: BoxDecoration(
           color: bgColor,
@@ -723,4 +688,3 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
     );
   }
 }
-

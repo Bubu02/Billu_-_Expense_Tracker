@@ -7,6 +7,8 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final bool showBack;
   final VoidCallback? onBack;
   final VoidCallback? onProfileTap;
+  final bool? isMasked;
+  final VoidCallback? onToggleMask;
 
   const AppHeader({
     super.key,
@@ -14,6 +16,8 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     this.showBack = false,
     this.onBack,
     this.onProfileTap,
+    this.isMasked,
+    this.onToggleMask,
   });
 
   @override
@@ -70,31 +74,49 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                   ),
                 ],
               ),
-              GestureDetector(
-                onTap: onProfileTap,
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: colors.surfaceContainer,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: colors.surfaceContainerHighest,
-                      width: 1,
-                    ),
+              // Privacy Toggle (Eye Icon)
+              if (isMasked != null && onToggleMask != null)
+                IconButton(
+                  onPressed: onToggleMask,
+                  icon: Icon(
+                    isMasked!
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    size: 20,
+                    color: colors.onSurface,
                   ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Image.network(
-                    'https://lh3.googleusercontent.com/aida/ALJJyrDpMNnjojhc77tbkUFWJkiBK459sYew1814QocxFzOywLt1UXLQcTvCBdZpkgvxhl_xjCDOhNVAsCI--tOn-zLi41F0UTIZM800MpKNg8cQsqNIpYxgxvx9US_5QYLSogPaerqxRZ88x7YRI9m8VRODjXDv4rjAc9LKTsw67ckbdiI843ynR-OtJQX4QXCI591CpGh8zUqGftdjPb_UwUW_SvDNvJBKt7aOLIYVJDchnQ',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Icon(
-                      Icons.person_rounded,
-                      size: 20,
-                      color: colors.onSurfaceVariant,
+                  style: IconButton.styleFrom(
+                    backgroundColor: colors.surfaceContainer,
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(8),
+                  ),
+                )
+              else
+                GestureDetector(
+                  onTap: onProfileTap,
+                  child: Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: colors.surfaceContainer,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: colors.surfaceContainerHighest,
+                        width: 1,
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.network(
+                      'https://lh3.googleusercontent.com/aida/ALJJyrDpMNnjojhc77tbkUFWJkiBK459sYew1814QocxFzOywLt1UXLQcTvCBdZpkgvxhl_xjCDOhNVAsCI--tOn-zLi41F0UTIZM800MpKNg8cQsqNIpYxgxvx9US_5QYLSogPaerqxRZ88x7YRI9m8VRODjXDv4rjAc9LKTsw67ckbdiI843ynR-OtJQX4QXCI591CpGh8zUqGftdjPb_UwUW_SvDNvJBKt7aOLIYVJDchnQ',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.person_rounded,
+                        size: 20,
+                        color: colors.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

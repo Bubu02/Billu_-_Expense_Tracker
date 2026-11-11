@@ -108,7 +108,15 @@ class _MainScaffoldState extends State<MainScaffold> {
 
     return Scaffold(
       backgroundColor: colors.surface,
-      appBar: const AppHeader(),
+      appBar: AppHeader(
+        isMasked: _currentIndex == 0 ? _isMasked : null,
+        onToggleMask: _currentIndex == 0
+            ? () {
+                setState(() => _isMasked = !_isMasked);
+                StorageService.instance.setMasked(_isMasked);
+              }
+            : null,
+      ),
       body: IndexedStack(
         index: _currentIndex,
         children: screens,
