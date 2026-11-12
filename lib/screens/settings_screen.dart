@@ -8,6 +8,7 @@ class SettingsScreen extends StatefulWidget {
   final ValueChanged<bool> onThemeChanged;
   final bool isMasked;
   final ValueChanged<bool> onMaskChanged;
+  final VoidCallback? onEraseData;
 
   const SettingsScreen({
     super.key,
@@ -15,6 +16,7 @@ class SettingsScreen extends StatefulWidget {
     required this.onThemeChanged,
     required this.isMasked,
     required this.onMaskChanged,
+    this.onEraseData,
   });
 
   @override
@@ -47,7 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'settings',
+                'Settings',
                 style: AppTypography.headlineMd(colors.primary).copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -115,7 +117,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'local vault active',
+                          'Local Vault Active',
                           style: AppTypography.labelSubtle(colors.secondary),
                         ),
                       ],
@@ -140,7 +142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'offline first',
+                        'Offline First',
                         style: AppTypography.labelCaps(colors.onPrimary),
                       ),
                     ],
@@ -155,7 +157,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 8),
             child: Text(
-              'APPEARANCE & THEME',
+              'Appearance & Theme',
               style: AppTypography.labelCaps(colors.secondary).copyWith(
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.2,
@@ -198,7 +200,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                         Text(
-                          'Monochrome high-contrast system',
+                          'Monochrome High-Contrast System',
                           style: AppTypography.labelSubtle(colors.secondary),
                         ),
                       ],
@@ -221,13 +223,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'SECURITY & PRIVACY',
+                  'Security & Privacy',
                   style: AppTypography.labelCaps(colors.secondary).copyWith(
                     fontWeight: FontWeight.w600,
                     letterSpacing: 1.2,
                   ),
                 ),
-                Text('3 active', style: AppTypography.labelSubtle(colors.secondary)),
+                Text('3 Active', style: AppTypography.labelSubtle(colors.secondary)),
               ],
             ),
           ),
@@ -240,8 +242,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 _buildSettingRow(
                   icon: Icons.fingerprint_rounded,
-                  title: 'biometric unlock',
-                  subtitle: 'fingerprint & face id authentication',
+                  title: 'Biometric Unlock',
+                  subtitle: 'Fingerprint & Face ID Authentication',
                   trailing: _buildToggleSwitch(
                     value: _biometricUnlock,
                     onChanged: (val) => setState(() => _biometricUnlock = val),
@@ -250,8 +252,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Divider(color: colors.surfaceContainer, height: 1),
                 _buildSettingRow(
                   icon: Icons.visibility_off_rounded,
-                  title: 'privacy mask mode',
-                  subtitle: 'hide ledger amounts in public view',
+                  title: 'Privacy Mask Mode',
+                  subtitle: 'Hide Ledger Amounts In Public View',
                   trailing: _buildToggleSwitch(
                     value: widget.isMasked,
                     onChanged: (val) => widget.onMaskChanged(val),
@@ -260,8 +262,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Divider(color: colors.surfaceContainer, height: 1),
                 _buildSettingRow(
                   icon: Icons.mark_chat_read_rounded,
-                  title: 'local sms parser',
-                  subtitle: '100% on-device transaction capture',
+                  title: 'Local SMS Parser',
+                  subtitle: '100% On-Device Transaction Capture',
                   trailing: _buildToggleSwitch(
                     value: _localSmsParser,
                     onChanged: (val) => setState(() => _localSmsParser = val),
@@ -279,13 +281,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'DATA & EXPORT',
+                  'Data & Export',
                   style: AppTypography.labelCaps(colors.secondary).copyWith(
                     fontWeight: FontWeight.w600,
                     letterSpacing: 1.2,
                   ),
                 ),
-                Text('sqlite encrypted', style: AppTypography.labelSubtle(colors.secondary)),
+                Text('SQLite Encrypted', style: AppTypography.labelSubtle(colors.secondary)),
               ],
             ),
           ),
@@ -298,8 +300,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 _buildSettingRow(
                   icon: Icons.file_download_outlined,
-                  title: 'export vault archive',
-                  subtitle: 'csv • json • signed pdf statements',
+                  title: 'Export Vault Archive',
+                  subtitle: 'CSV • JSON • Signed PDF Statements',
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
@@ -307,7 +309,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       borderRadius: BorderRadius.circular(9999),
                     ),
                     child: Text(
-                      'download',
+                      'Download',
                       style: AppTypography.labelCaps(colors.onSurface),
                     ),
                   ),
@@ -320,8 +322,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Divider(color: colors.surfaceContainer, height: 1),
                 _buildSettingRow(
                   icon: Icons.cloud_sync_outlined,
-                  title: 'encrypted cloud backup',
-                  subtitle: 'local only • tap to configure',
+                  title: 'Encrypted Cloud Backup',
+                  subtitle: 'Local Only • Tap To Configure',
                   trailing: Icon(
                     Icons.chevron_right_rounded,
                     size: 20,
@@ -337,8 +339,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _buildSettingRow(
                   icon: Icons.delete_forever_rounded,
                   iconColor: colors.error,
-                  title: 'erase local database',
-                  subtitle: 'purge cached indexes & ledger files',
+                  title: 'Erase Local Database',
+                  subtitle: 'Purge Cached Indexes & Ledger Files',
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
@@ -358,7 +360,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'reset',
+                          'Reset',
                           style: AppTypography.labelCaps(colors.onSurface),
                         ),
                       ],
@@ -369,9 +371,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       context: context,
                       builder: (context) => AlertDialog(
                         backgroundColor: colors.surfaceContainerLowest,
-                        title: Text('Erase Local Database?', style: AppTypography.headlineMd(colors.onSurface)),
+                        title: Text('Erase All Data?', style: AppTypography.headlineMd(colors.onSurface)),
                         content: Text(
-                          'Are you sure you want to permanently erase local database? This cannot be undone.',
+                          'This will permanently delete all transactions and reset account balances.',
                           style: AppTypography.bodyMd(colors.onSurfaceVariant),
                         ),
                         actions: [
@@ -382,11 +384,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           TextButton(
                             onPressed: () {
                               Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Vault database wiped.')),
-                              );
+                              widget.onEraseData?.call();
                             },
-                            child: Text('Reset', style: AppTypography.bodyMd(colors.error)),
+                            child: Text('Erase', style: AppTypography.bodyMd(colors.error)),
                           ),
                         ],
                       ),
@@ -419,7 +419,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'pure minimal budgeting • no ads • no cloud tracking',
+                  'Pure Minimal Budgeting • No Ads • No Cloud Tracking',
                   style: AppTypography.labelSubtle(colors.secondary),
                 ),
               ],

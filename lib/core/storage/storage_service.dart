@@ -149,6 +149,16 @@ class StorageService {
 
   // ── Reset ───────────────────────────────────────────────────────────────
 
+  Future<void> eraseAllData() async {
+    await init();
+    try {
+      await _prefs?.remove(_keyTransactions);
+      await _prefs?.remove(_keyAccounts);
+    } catch (e) {
+      debugPrint('Error erasing all data: $e');
+    }
+  }
+
   Future<void> clearAll() async {
     await init();
     await _prefs?.clear();

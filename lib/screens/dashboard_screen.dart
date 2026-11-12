@@ -30,8 +30,8 @@ enum GraphMode { expense, income }
 
 class _DashboardScreenState extends State<DashboardScreen> {
   late DateTime _currentMonth;
-  String _selectedTimeRange = 'this month';
-  final List<String> _timeRangeOptions = ['7 days', '15 days', 'this month', 'custom'];
+  String _selectedTimeRange = 'This Month';
+  final List<String> _timeRangeOptions = ['7 Days', '15 Days', 'This Month', 'Custom'];
   GraphMode _graphMode = GraphMode.expense;
 
   @override
@@ -208,7 +208,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'TOTAL SPEND',
+                      'Total Spend',
                       style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
                         letterSpacing: 1.2,
                         fontWeight: FontWeight.w600,
@@ -279,8 +279,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 // Baseline comparison (Compacted)
                 Text(
                   monthlyTransactions.isEmpty
-                      ? 'No spending recorded this period'
-                      : '${monthlyTransactions.length} Transaction${monthlyTransactions.length == 1 ? '' : 's'} tracked',
+                      ? 'No Spending Recorded This Period'
+                      : '${monthlyTransactions.length} Transaction${monthlyTransactions.length == 1 ? '' : 's'} Tracked',
                   style: AppTypography.labelSubtle(colors.onSurfaceVariant).copyWith(
                     fontSize: 11,
                   ),
@@ -334,7 +334,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ],
                               ),
                               child: Text(
-                                'today \$${todayTransactions.fold<double>(0.0, (s, t) => s + t.amount).toStringAsFixed(2)}',
+                                'Today \$${todayTransactions.fold<double>(0.0, (s, t) => s + t.amount).toStringAsFixed(2)}',
                                 style: AppTypography.labelCaps(colors.onPrimary).copyWith(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
@@ -373,7 +373,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 return Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      if (option == 'custom') {
+                      if (option == 'Custom') {
                         _showCustomDatePicker();
                       } else {
                         setState(() => _selectedTimeRange = option);
@@ -435,7 +435,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'envelope in rhythm',
+                          'Envelope In Rhythm',
                           style: AppTypography.headlineMd(colors.primary).copyWith(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -492,7 +492,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'NO RECENT ENTRIES',
+                    'No Recent Entries',
                     style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
                       letterSpacing: 1.2,
                       fontWeight: FontWeight.w600,
@@ -500,7 +500,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Tap the + button to log your first transaction',
+                    'Tap The + Button To Log Your First Transaction',
                     style: AppTypography.labelSubtle(colors.onSurfaceVariant),
                     textAlign: TextAlign.center,
                   ),
@@ -532,7 +532,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               children: [
                 Text(
-                  'BILLU LEDGER • OFFLINE VAULT',
+                  'Billu Ledger • Offline Vault',
                   style: AppTypography.labelCaps(colors.onSurfaceVariant.withValues(alpha: 0.6)).copyWith(
                     letterSpacing: 1.5,
                   ),
@@ -568,7 +568,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Padding(
           padding: const EdgeInsets.only(bottom: 8, left: 2, right: 2),
           child: Text(
-            title.toUpperCase(),
+            title,
             style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
               fontWeight: FontWeight.w600,
               letterSpacing: 1.2,
@@ -693,7 +693,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
 
     switch (_selectedTimeRange) {
-      case '7 days':
+      case '7 Days':
         // Show all 7 consecutive days
         final startDay = now.day - 6;
         return List.generate(7, (i) {
@@ -705,7 +705,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           );
         });
 
-      case '15 days':
+      case '15 Days':
         // Sample with interval ~3-4 days: 5 ticks
         final days = [
           now.day - 14, // 15 days ago
@@ -722,7 +722,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           );
         }).toList();
 
-      case 'this month':
+      case 'This Month':
       default:
         // Sample with interval ~6-7 days across month
         final daysInMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
@@ -794,11 +794,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     // Generate sample data based on selected range
     switch (_selectedTimeRange) {
-      case '7 days':
+      case '7 Days':
         return [0.0, 15.0, 25.0, 10.0, 30.0, 45.0, 52.0];
-      case '15 days':
+      case '15 Days':
         return [0.0, 10.0, 20.0, 15.0, 25.0, 30.0, 20.0, 35.0, 40.0, 30.0, 45.0, 50.0, 48.0, 55.0, 52.0];
-      case 'this month':
+      case 'This Month':
       default:
         // Generate monthly data (30 days)
         return List.generate(30, (i) {

@@ -20,7 +20,7 @@ class BudgetAnalyticsScreen extends StatefulWidget {
 }
 
 class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
-  String _selectedPeriod = 'monthly';
+  String _selectedPeriod = 'Monthly';
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +62,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'analytics',
+                'Analytics',
                 style: AppTypography.headlineLg(colors.primary).copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -74,7 +74,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                   borderRadius: BorderRadius.circular(9999),
                 ),
                 child: Row(
-                  children: ['weekly', 'monthly', 'custom'].map((period) {
+                  children: ['Weekly', 'Monthly', 'Custom'].map((period) {
                     final isSelected = period == _selectedPeriod;
                     return GestureDetector(
                       onTap: () => setState(() => _selectedPeriod = period),
@@ -123,8 +123,8 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                     const SizedBox(width: 8),
                     Text(
                       allCategories.isEmpty
-                          ? 'no budget alerts • spending on track'
-                          : '${allCategories.first.title} cap active',
+                          ? 'No Budget Alerts • Spending On Track'
+                          : '${allCategories.first.title} Cap Active',
                       style: AppTypography.numericSm(colors.primary).copyWith(
                         fontWeight: FontWeight.w500,
                       ),
@@ -176,7 +176,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'MONTH TOTAL',
+                            'Month Total',
                             style: AppTypography.labelCaps(colors.secondary).copyWith(
                               letterSpacing: 1.2,
                               fontWeight: FontWeight.w600,
@@ -193,8 +193,8 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                           const SizedBox(height: 2),
                           Text(
                             allCategories.isEmpty
-                                ? 'no budget cap'
-                                : 'of \$${allCategories.fold<double>(0.0, (s, c) => s + c.limit).toInt()} cap',
+                                ? 'No Budget Cap'
+                                : 'of \$${allCategories.fold<double>(0.0, (s, c) => s + c.limit).toInt()} Cap',
                             style: AppTypography.labelSubtle(colors.outline),
                           ),
                         ],
@@ -210,7 +210,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Center(
                       child: Text(
-                        'no category breakdown available',
+                        'No Category Breakdown Available',
                         style: AppTypography.labelSubtle(colors.onSurfaceVariant),
                       ),
                     ),
@@ -278,13 +278,13 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'category logs',
+                'Category Logs',
                 style: AppTypography.headlineMd(colors.primary).copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
               Text(
-                '${allCategories.length} active caps',
+                '${allCategories.length} Active Caps',
                 style: AppTypography.labelSubtle(colors.secondary),
               ),
             ],
@@ -312,7 +312,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'NO ACTIVE CAPS',
+                    'No Active Caps',
                     style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
                       letterSpacing: 1.2,
                       fontWeight: FontWeight.w600,
@@ -320,7 +320,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Budget limits and category logs will appear here',
+                    'Budget Limits And Category Logs Will Appear Here',
                     style: AppTypography.labelSubtle(colors.onSurfaceVariant),
                     textAlign: TextAlign.center,
                   ),
@@ -418,11 +418,11 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '${(percent * 100).toInt()}% spent',
+                          '${(percent * 100).toInt()}% Spent',
                           style: AppTypography.labelSubtle(colors.secondary),
                         ),
                         Text(
-                          '\$${cat.remaining.toInt()} left',
+                          '\$${cat.remaining.toInt()} Left',
                           style: AppTypography.numericSm(colors.primary).copyWith(
                             fontSize: 12,
                           ),

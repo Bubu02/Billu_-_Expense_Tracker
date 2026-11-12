@@ -43,7 +43,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                 textBaseline: TextBaseline.alphabetic,
                 children: [
                   Text(
-                    'wallets & cards',
+                    'Wallets & Cards',
                     style: AppTypography.headlineLg(colors.primary).copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -73,7 +73,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                       Icon(Icons.add, size: 14, color: colors.onSurface),
                       const SizedBox(width: 4),
                       Text(
-                        '+ add account',
+                        '+ Add Account',
                         style: AppTypography.labelCaps(colors.onSurface),
                       ),
                     ],
@@ -117,7 +117,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'NET LIQUIDITY',
+                          'Net Liquidity',
                           style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
                             fontWeight: FontWeight.w600,
                             letterSpacing: 1.2,
@@ -196,8 +196,8 @@ class _WalletsScreenState extends State<WalletsScreen> {
                             const SizedBox(width: 6),
                             Text(
                               allAccounts.isEmpty
-                                  ? 'no cycle history'
-                                  : 'vs last billing cycle',
+                                  ? 'No Cycle History'
+                                  : 'Vs Last Billing Cycle',
                               style: AppTypography.labelSubtle(colors.onSurfaceVariant),
                             ),
                           ],
@@ -228,11 +228,11 @@ class _WalletsScreenState extends State<WalletsScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'cash vs credit ratio',
+                          'Cash Vs Credit Ratio',
                           style: AppTypography.labelSubtle(colors.onSurfaceVariant),
                         ),
                         Text(
-                          allAccounts.isEmpty ? '0% liquid' : '100% liquid',
+                          allAccounts.isEmpty ? '0% Liquid' : '100% Liquid',
                           style: AppTypography.numericSm(colors.onSurface).copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -274,14 +274,14 @@ class _WalletsScreenState extends State<WalletsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'ACTIVE VAULTS (${allAccounts.length})',
+                'Active Vaults (${allAccounts.length})',
                 style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1.2,
                 ),
               ),
               Text(
-                'ordered by flow',
+                'Ordered By Flow',
                 style: AppTypography.labelSubtle(colors.onSurfaceVariant),
               ),
             ],
@@ -310,7 +310,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'NO ACTIVE VAULTS',
+                    'No Active Vaults',
                     style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
                       letterSpacing: 1.2,
                       fontWeight: FontWeight.w600,
@@ -318,7 +318,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Add a bank account, card, or cash wallet to begin tracking',
+                    'Add A Bank Account, Card, Or Cash Wallet To Begin Tracking',
                     style: AppTypography.labelSubtle(colors.onSurfaceVariant),
                     textAlign: TextAlign.center,
                   ),
@@ -332,7 +332,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                         borderRadius: BorderRadius.circular(9999),
                       ),
                       child: Text(
-                        '+ add first account',
+                        '+ Add First Account',
                         style: AppTypography.labelCaps(colors.onPrimary),
                       ),
                     ),
@@ -524,9 +524,9 @@ class _WalletsScreenState extends State<WalletsScreen> {
               final newAcc = AccountModel(
                 id: 'acc-${DateTime.now().millisecondsSinceEpoch}',
                 name: name,
-                subtitle: 'manual vault',
+                subtitle: 'Manual Vault',
                 balance: bal,
-                badgeText: 'active',
+                badgeText: 'Active',
                 isPrimaryBadge: false,
                 icon: icon,
               );
@@ -568,19 +568,19 @@ class _WalletsScreenState extends State<WalletsScreen> {
                 ListTile(
                   leading: const Icon(Icons.account_balance_outlined),
                   title: const Text('Bank Account'),
-                  subtitle: const Text('Connect checking or savings'),
+                  subtitle: const Text('Connect Checking Or Savings'),
                   onTap: () => _addAccountDialog('Bank Account', Icons.account_balance_outlined, 'Checking Account'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.credit_card_outlined),
                   title: const Text('Credit Card'),
-                  subtitle: const Text('Auto-sync balances and statements'),
+                  subtitle: const Text('Auto-Sync Balances And Statements'),
                   onTap: () => _addAccountDialog('Credit Card', Icons.credit_card_outlined, 'Credit Card'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.payments_outlined),
                   title: const Text('Manual Cash Wallet'),
-                  subtitle: const Text('Track physical currency envelope'),
+                  subtitle: const Text('Track Physical Currency Envelope'),
                   onTap: () => _addAccountDialog('Cash Wallet', Icons.payments_outlined, 'Cash Wallet'),
                 ),
               ],

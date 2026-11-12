@@ -53,7 +53,7 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
 
   // Generate 5-day date strip centered on selected date
   List<Map<String, dynamic>> _getDateStrip() {
-    const weekdays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return List.generate(5, (i) {
       final d = _selectedDate.subtract(Duration(days: 2 - i));
       return {
@@ -160,6 +160,21 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
         return Icons.movie_outlined;
       case 'pet care':
         return Icons.pets_outlined;
+      case 'salary':
+        return Icons.work_outline_rounded;
+      case 'room rent':
+        return Icons.real_estate_agent_outlined;
+      case 'coupon':
+        return Icons.confirmation_number_outlined;
+      case 'cashback':
+        return Icons.savings_outlined;
+      case 'given':
+      case 'lent/returned':
+        return Icons.volunteer_activism_outlined;
+      case 'investment':
+        return Icons.trending_up_rounded;
+      case 'other income':
+        return Icons.attach_money_rounded;
       default:
         return Icons.receipt_outlined;
     }
@@ -353,9 +368,9 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              _buildTypeSegment('expense', TransactionType.expense),
-                              _buildTypeSegment('income', TransactionType.income),
-                              _buildTypeSegment('transfer', TransactionType.transfer),
+                              _buildTypeSegment('Expense', TransactionType.expense),
+                              _buildTypeSegment('Income', TransactionType.income),
+                              _buildTypeSegment('Transfer', TransactionType.transfer),
                             ],
                           ),
                         ),
@@ -476,7 +491,7 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
                     if (widget.accounts != null && widget.accounts!.isNotEmpty) ...[
                       // From Account Selector (shown for all types)
                       _buildAccountPill(
-                        label: _selectedType == TransactionType.transfer ? 'from' : (_selectedType == TransactionType.expense ? 'from' : 'to'),
+                        label: _selectedType == TransactionType.transfer ? 'From:' : (_selectedType == TransactionType.expense ? 'From:' : 'To:'),
                         accountId: _selectedAccountId,
                         onTap: () => _showAccountPicker(isFrom: true),
                       ),
@@ -485,7 +500,7 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
                       // To Account Selector (only for Transfer)
                       if (_selectedType == TransactionType.transfer) ...[
                         _buildAccountPill(
-                          label: 'to',
+                          label: 'To:',
                           accountId: _toAccountId,
                           onTap: () => _showAccountPicker(isFrom: false),
                         ),
@@ -550,7 +565,7 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
                         controller: _noteController,
                         style: AppTypography.bodyMd(colors.onSurface).copyWith(fontSize: 14),
                         decoration: InputDecoration(
-                          hintText: 'add a note...',
+                          hintText: 'Add A Note...',
                           hintStyle: AppTypography.bodyMd(colors.secondary.withValues(alpha: 0.6)),
                           border: InputBorder.none,
                           isDense: true,
@@ -636,7 +651,20 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
     final isSelected = _selectedType == type;
 
     return GestureDetector(
-      onTap: () => setState(() => _selectedType = type),
+      onTap: () {
+        if (_selectedType != type) {
+          setState(() {
+            _selectedType = type;
+            if (type == TransactionType.expense) {
+              _selectedCategory = 'General';
+              _categoryEmoji = '🏷️';
+            } else if (type == TransactionType.income) {
+              _selectedCategory = 'Salary';
+              _categoryEmoji = '💼';
+            }
+          });
+        }
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -727,10 +755,10 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              label.toUpperCase(),
+              label,
               style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
                 fontSize: 10,
-                letterSpacing: 1.0,
+                letterSpacing: 0.5,
               ),
             ),
             const SizedBox(width: 8),
@@ -854,17 +882,27 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
 
   void _showCategoryPicker() {
     final colors = context.billuColors;
-    final categories = [
-      {'emoji': '🏷️', 'name': 'general'},
-      {'emoji': '🛒', 'name': 'groceries'},
-      {'emoji': '☕', 'name': 'coffee & drinks'},
-      {'emoji': '🍽️', 'name': 'dining & food'},
-      {'emoji': '🚇', 'name': 'transit & commute'},
-      {'emoji': '🛍️', 'name': 'shopping'},
-      {'emoji': '🏠', 'name': 'rent & utilities'},
-      {'emoji': '🎬', 'name': 'entertainment'},
-      {'emoji': '🐾', 'name': 'pet care'},
-    ];
+    final categories = _selectedType == TransactionType.income
+        ? [
+            {'emoji': '💼', 'name': 'Salary'},
+            {'emoji': '🏠', 'name': 'Room Rent'},
+            {'emoji': '🎟️', 'name': 'Coupon'},
+            {'emoji': '🪙', 'name': 'Cashback'},
+            {'emoji': '🤝', 'name': 'Given'},
+            {'emoji': '📈', 'name': 'Investment'},
+            {'emoji': '💵', 'name': 'Other Income'},
+          ]
+        : [
+            {'emoji': '🏷️', 'name': 'General'},
+            {'emoji': '🛒', 'name': 'Groceries'},
+            {'emoji': '☕', 'name': 'Coffee & Drinks'},
+            {'emoji': '🍽️', 'name': 'Dining & Food'},
+            {'emoji': '🚇', 'name': 'Transit & Commute'},
+            {'emoji': '🛍️', 'name': 'Shopping'},
+            {'emoji': '🏠', 'name': 'Rent & Utilities'},
+            {'emoji': '🎬', 'name': 'Entertainment'},
+            {'emoji': '🐾', 'name': 'Pet Care'},
+          ];
 
     showModalBottomSheet(
       context: context,

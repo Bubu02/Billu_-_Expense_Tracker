@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/database/db_helper.dart';
 import '../core/storage/storage_service.dart';
 import '../models/account_model.dart';
 import '../models/budget_model.dart';
@@ -85,6 +86,23 @@ class _MainScaffoldState extends State<MainScaffold> {
     );
   }
 
+  Future<void> _onEraseData() async {
+    await DBHelper.instance.purgeDatabase();
+    await StorageService.instance.eraseAllData();
+    if (!mounted) return;
+    setState(() {
+      _transactions = [];
+      _accounts = [];
+      _currentIndex = 0;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Local data erased successfully'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.billuColors;
@@ -116,6 +134,7 @@ class _MainScaffoldState extends State<MainScaffold> {
           setState(() => _isMasked = val);
           StorageService.instance.setMasked(val);
         },
+        onEraseData: _onEraseData,
       ),
     ];
 

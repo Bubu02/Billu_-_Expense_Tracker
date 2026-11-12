@@ -230,68 +230,68 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
                         ),
                       ),
 
-                      // 1. "balance" (top-left)
+                      // 1. "Balance" (top-left)
                       Positioned(
                         top: 24,
                         left: 8,
                         child: _buildFloatingPill(
                           index: 0,
-                          text: 'balance',
+                          text: 'Balance',
                           isInverted: false,
                         ),
                       ),
 
-                      // 2. "+ income" (top-right)
+                      // 2. "+ Income" (top-right)
                       Positioned(
                         top: 16,
                         right: 14,
                         child: _buildFloatingPill(
                           index: 1,
-                          text: '+ income',
+                          text: '+ Income',
                           isInverted: false,
                         ),
                       ),
 
-                      // 3. "expenses ●" (mid-left - inverted primary anchor)
+                      // 3. "Expenses ●" (mid-left - inverted primary anchor)
                       Positioned(
                         top: 140,
                         left: 0,
                         child: _buildFloatingPill(
                           index: 2,
-                          text: 'expenses ●',
+                          text: 'Expenses ●',
                           isInverted: true,
                         ),
                       ),
 
-                      // 4. "food" (mid-right)
+                      // 4. "Food" (mid-right)
                       Positioned(
                         top: 140,
                         right: 0,
                         child: _buildFloatingPill(
                           index: 3,
-                          text: 'food',
+                          text: 'Food',
                           isInverted: false,
                         ),
                       ),
 
-                      // 5. "travel" (bottom-left)
+                      // 5. "Travel" (bottom-left)
                       Positioned(
                         bottom: 24,
                         left: 16,
                         child: _buildFloatingPill(
                           index: 4,
-                          text: 'travel',
+                          text: 'Travel',
                           isInverted: false,
                         ),
                       ),
 
-                      // 6. "fun ✦" (bottom-right)
+                      // 6. "Fun ✦" (bottom-right)
                       Positioned(
                         bottom: 28,
                         right: 14,
                         child: _buildFloatingPill(
                           index: 5,
-                          text: 'fun ✦',
+                          text: 'Fun ✦',
                           isInverted: false,
                         ),
                       ),
@@ -332,7 +332,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'your minimal budgeting app',
+                      'Your Minimal Budgeting App',
                       style: AppTypography.bodyMd(colors.onSurfaceVariant),
                     ),
                     const SizedBox(height: 24),
@@ -355,7 +355,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              'get started',
+                              'Get Started',
                               style: AppTypography.bodyLg(colors.onPrimary).copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -395,11 +395,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              'already tracked? ',
+                              'Already Tracked? ',
                               style: AppTypography.labelSubtle(colors.onSurfaceVariant),
                             ),
                             Text(
-                              'restore backup',
+                              'Restore Backup',
                               style: AppTypography.labelSubtle(colors.primary).copyWith(
                                 fontWeight: FontWeight.w600,
                                 decoration: TextDecoration.underline,
@@ -413,7 +413,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
 
                     // Zen Statement
                     Text(
-                      'ZERO CLUTTER • LOCAL FIRST',
+                      'Zero Clutter • Local First',
                       style: AppTypography.labelCaps(colors.onSurfaceVariant.withValues(alpha: 0.6)).copyWith(
                         letterSpacing: 1.5,
                       ),

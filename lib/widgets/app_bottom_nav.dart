@@ -47,13 +47,13 @@ class AppBottomNav extends StatelessWidget {
                 context,
                 index: 0,
                 icon: Icons.grid_view_rounded,
-                label: 'desk',
+                label: 'Desk',
               ),
               _buildNavItem(
                 context,
                 index: 1,
                 icon: Icons.donut_large_rounded,
-                label: 'stats',
+                label: 'Stats',
               ),
               // Floating Center Action Button
               Transform.translate(
@@ -87,13 +87,13 @@ class AppBottomNav extends StatelessWidget {
                 context,
                 index: 2,
                 icon: Icons.account_balance_wallet_outlined,
-                label: 'vault',
+                label: 'Vault',
               ),
               _buildNavItem(
                 context,
                 index: 3,
                 icon: Icons.tune_rounded,
-                label: 'setup',
+                label: 'Setup',
               ),
             ],
           ),

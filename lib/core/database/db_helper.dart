@@ -20,6 +20,7 @@ class DBHelper {
   static const colCatId = 'id';
   static const colCatName = 'name';
   static const colCatIcon = 'icon'; // Material icon codePoint
+  static const colCatType = 'type'; // 'expense' | 'income'
   static const colCatCreatedAt = 'created_at';
 
   // Accounts
@@ -77,6 +78,7 @@ class DBHelper {
         $colCatId       INTEGER PRIMARY KEY AUTOINCREMENT,
         $colCatName     TEXT    NOT NULL UNIQUE,
         $colCatIcon     INTEGER NOT NULL,
+        $colCatType     TEXT    NOT NULL DEFAULT 'expense',
         $colCatCreatedAt TEXT   NOT NULL DEFAULT (datetime('now'))
       )
     ''');
@@ -129,12 +131,24 @@ class DBHelper {
   /// Material icon codePoints for each default category.
   /// Using outlined variants to match the app's existing style.
   static const _defaultCategories = <Map<String, Object>>[
-    {'name': 'Groceries', 'icon': 0xe59c}, // Icons.shopping_cart_outlined
-    {'name': 'Transit', 'icon': 0xe1d5},   // Icons.directions_subway_outlined
-    {'name': 'Dining', 'icon': 0xe56c},    // Icons.restaurant_outlined
-    {'name': 'Rent', 'icon': 0xe318},       // Icons.home_outlined
-    {'name': 'Utilities', 'icon': 0xea39}, // Icons.electrical_services_outlined
-    {'name': 'Fun', 'icon': 0xe332},        // Icons.celebration_outlined
+    // Expense categories
+    {'name': 'General', 'icon': 0xe514, 'type': 'expense'},
+    {'name': 'Groceries', 'icon': 0xe59c, 'type': 'expense'},
+    {'name': 'Coffee & Drinks', 'icon': 0xe3a7, 'type': 'expense'},
+    {'name': 'Dining & Food', 'icon': 0xe56c, 'type': 'expense'},
+    {'name': 'Transit & Commute', 'icon': 0xe1d5, 'type': 'expense'},
+    {'name': 'Shopping', 'icon': 0xe3ad, 'type': 'expense'},
+    {'name': 'Rent & Utilities', 'icon': 0xe318, 'type': 'expense'},
+    {'name': 'Entertainment', 'icon': 0xe3f1, 'type': 'expense'},
+    {'name': 'Pet Care', 'icon': 0xe4a1, 'type': 'expense'},
+    // Income categories
+    {'name': 'Salary', 'icon': 0xf02ed, 'type': 'income'},
+    {'name': 'Room Rent', 'icon': 0xf0118, 'type': 'income'},
+    {'name': 'Coupon', 'icon': 0xe19f, 'type': 'income'},
+    {'name': 'Cashback', 'icon': 0xe561, 'type': 'income'},
+    {'name': 'Given', 'icon': 0xf02a6, 'type': 'income'},
+    {'name': 'Investment', 'icon': 0xf44e, 'type': 'income'},
+    {'name': 'Other Income', 'icon': 0xe0b2, 'type': 'income'},
   ];
 
   Future<void> _seedCategories(Database db) async {
@@ -143,6 +157,7 @@ class DBHelper {
       batch.insert(tableCategories, {
         colCatName: cat['name'],
         colCatIcon: cat['icon'],
+        colCatType: cat['type'],
       });
     }
     await batch.commit(noResult: true);
@@ -161,6 +176,16 @@ class DBHelper {
   Future<List<Map<String, dynamic>>> getAllCategories() async {
     final db = await database;
     return db.query(tableCategories, orderBy: '$colCatName ASC');
+  }
+
+  Future<List<Map<String, dynamic>>> getCategoriesByType(String type) async {
+    final db = await database;
+    return db.query(
+      tableCategories,
+      where: '$colCatType = ?',
+      whereArgs: [type],
+      orderBy: '$colCatName ASC',
+    );
   }
 
   Future<Map<String, dynamic>?> getCategoryById(int id) async {
@@ -380,6 +405,23 @@ class DBHelper {
       await txn.delete(tableCategories);
     });
     await _seedCategories(db);
+  }
+
+  /// Hard purge: safely closes the database, deletes the physical file from disk,
+  /// re-creates the database structure, and re-seeds default categories.
+  Future<void> purgeDatabase() async {
+    try {
+      if (_db != null && _db!.isOpen) {
+        await _db!.close();
+        _db = null;
+      }
+      final dbPath = await getDatabasesPath();
+      final path = p.join(dbPath, _dbName);
+      await deleteDatabase(path);
+      _db = await _initDB();
+    } catch (e) {
+      await resetAllData();
+    }
   }
 
   /// Close the database. Call from `dispose` if needed.
