@@ -33,6 +33,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _selectedTimeRange = 'This Month';
   final List<String> _timeRangeOptions = ['7 Days', '15 Days', 'This Month', 'Custom'];
   GraphMode _graphMode = GraphMode.expense;
+  DateTimeRange? _customDateRange;
 
   @override
   void initState() {
@@ -40,6 +41,82 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // Initialize to current device month and year
     final now = DateTime.now();
     _currentMonth = DateTime(now.year, now.month);
+  }
+
+  DateTimeRange _getActiveDateRange() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    switch (_selectedTimeRange) {
+      case '7 Days':
+        return DateTimeRange(
+          start: today.subtract(const Duration(days: 6)),
+          end: today,
+        );
+      case '15 Days':
+        return DateTimeRange(
+          start: today.subtract(const Duration(days: 14)),
+          end: today,
+        );
+      case 'Custom':
+        if (_customDateRange != null) {
+          final s = _customDateRange!.start;
+          final e = _customDateRange!.end;
+          return DateTimeRange(
+            start: DateTime(s.year, s.month, s.day),
+            end: DateTime(e.year, e.month, e.day),
+          );
+        }
+        return DateTimeRange(
+          start: today.subtract(const Duration(days: 6)),
+          end: today,
+        );
+      case 'This Month':
+      default:
+        final start = DateTime(_currentMonth.year, _currentMonth.month, 1);
+        final daysInMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
+        final end = DateTime(_currentMonth.year, _currentMonth.month, daysInMonth);
+        return DateTimeRange(start: start, end: end);
+    }
+  }
+
+  // Generate contiguous daily array mapping dates to sum (excluding transfers)
+  List<MapEntry<DateTime, double>> _getDailyDataPoints() {
+    final allTransactions = widget.transactions ?? [];
+    final range = _getActiveDateRange();
+    final targetType = _graphMode == GraphMode.expense
+        ? TransactionType.expense
+        : TransactionType.income;
+
+    // Filter by type (Expense / Income, excluding Transfer) & date range
+    final activeRangeTxs = allTransactions.where((tx) {
+      if (tx.type != targetType) return false;
+      final txDate = DateTime(tx.timestamp.year, tx.timestamp.month, tx.timestamp.day);
+      return !txDate.isBefore(range.start) && !txDate.isAfter(range.end);
+    }).toList();
+
+    // Contiguous list covering every single day
+    final results = <MapEntry<DateTime, double>>[];
+    var current = range.start;
+    while (!current.isAfter(range.end)) {
+      final dayTxs = activeRangeTxs.where((tx) =>
+          tx.timestamp.year == current.year &&
+          tx.timestamp.month == current.month &&
+          tx.timestamp.day == current.day);
+      final dayTotal = dayTxs.fold<double>(0.0, (sum, tx) => sum + tx.amount);
+      results.add(MapEntry(current, dayTotal));
+      current = current.add(const Duration(days: 1));
+    }
+    return results;
+  }
+
+  // Filter transactions for the active display range
+  List<TransactionModel> _getDisplayTransactions() {
+    final allTransactions = widget.transactions ?? [];
+    final range = _getActiveDateRange();
+    return allTransactions.where((tx) {
+      final txDate = DateTime(tx.timestamp.year, tx.timestamp.month, tx.timestamp.day);
+      return !txDate.isBefore(range.start) && !txDate.isAfter(range.end);
+    }).toList();
   }
 
   // Filter transactions for the current month
@@ -107,28 +184,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencySymbol = StorageService.instance.getCurrencySymbol();
 
-    // Filter transactions for current month
-    final monthlyTransactions = _getMonthlyTransactions();
+    // 1. Normalized contiguous daily array for chart
+    final dailyEntries = _getDailyDataPoints();
+    final dailyTotals = dailyEntries.map((e) => e.value).toList();
+    final maxY = dailyTotals.isEmpty ? 0.0 : dailyTotals.reduce((a, b) => a > b ? a : b);
 
-    // Calculate totals for current month
-    final totalExpense = monthlyTransactions
+    // Active range transactions for active graph type
+    final displayTransactions = _getDisplayTransactions();
+    final targetType = _graphMode == GraphMode.expense
+        ? TransactionType.expense
+        : TransactionType.income;
+    final activeTypeTransactions = displayTransactions.where((t) => t.type == targetType).toList();
+
+    // Total for active period and type
+    final totalActiveAmount = dailyTotals.fold<double>(0.0, (sum, val) => sum + val);
+
+    // Monthly totals for budget health card
+    final monthlyTransactions = _getMonthlyTransactions();
+    final monthlyExpense = monthlyTransactions
         .where((t) => t.type == TransactionType.expense)
         .fold<double>(0.0, (sum, t) => sum + t.amount);
 
-    final totalIncome = monthlyTransactions
-        .where((t) => t.type == TransactionType.income)
-        .fold<double>(0.0, (sum, t) => sum + t.amount);
+    // Group transactions by date for ledger section
+    final groupedTransactions = _groupTransactionsByDate(displayTransactions);
 
-    // Group transactions by date
-    final groupedTransactions = _groupTransactionsByDate(monthlyTransactions);
-
-    // Get today's transactions for tooltip
+    // Dynamic tooltip & active peak point calculation
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final todayTransactions = monthlyTransactions.where((t) {
-      final txDate = DateTime(t.timestamp.year, t.timestamp.month, t.timestamp.day);
-      return txDate == today;
-    }).toList();
+    final todayIdx = dailyEntries.indexWhere((e) =>
+        e.key.year == today.year &&
+        e.key.month == today.month &&
+        e.key.day == today.day);
+
+    String? tooltipLabel;
+    int? activeIndex;
+
+    if (todayIdx != -1 && dailyTotals[todayIdx] > 0.0) {
+      activeIndex = todayIdx;
+      tooltipLabel = 'Today $currencySymbol${dailyTotals[todayIdx].toStringAsFixed(2)}';
+    } else if (maxY > 0.0) {
+      final peakIdx = dailyTotals.indexOf(maxY);
+      activeIndex = peakIdx;
+      final peakDate = dailyEntries[peakIdx].key;
+      final dateStr = DateFormat('MMM d').format(peakDate);
+      tooltipLabel = '$dateStr $currencySymbol${maxY.toStringAsFixed(2)}';
+    }
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -208,7 +308,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Total Spend',
+                      _graphMode == GraphMode.expense ? 'Total Spend' : 'Total Income',
                       style: AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
                         letterSpacing: 1.2,
                         fontWeight: FontWeight.w600,
@@ -259,7 +359,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Text(
                       widget.isMasked
                           ? '$currencySymbol••••••'
-                          : '$currencySymbol${(_graphMode == GraphMode.expense ? totalExpense : totalIncome).toStringAsFixed(2)}',
+                          : '$currencySymbol${totalActiveAmount.toStringAsFixed(2)}',
                       style: AppTypography.displayCurrencyMobile(colors.primary).copyWith(
                         fontSize: 28,
                         fontWeight: FontWeight.w700,
@@ -278,73 +378,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 // Baseline comparison (Compacted)
                 Text(
-                  monthlyTransactions.isEmpty
-                      ? 'No Spending Recorded This Period'
-                      : '${monthlyTransactions.length} Transaction${monthlyTransactions.length == 1 ? '' : 's'} Tracked',
+                  activeTypeTransactions.isEmpty
+                      ? 'No ${_graphMode == GraphMode.expense ? 'Spending' : 'Income'} Recorded This Period'
+                      : '${activeTypeTransactions.length} Transaction${activeTypeTransactions.length == 1 ? '' : 's'} Tracked',
                   style: AppTypography.labelSubtle(colors.onSurfaceVariant).copyWith(
                     fontSize: 11,
                   ),
                 ),
                 const SizedBox(height: 18),
 
-                // Sparkline Canvas (Expanded Height)
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    // Canvas Sparkline (Increased from 84 to 160)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 160,
-                      child: CustomPaint(
-                        painter: SparklinePainter(
-                          lineColor: colors.primary,
-                          gridLineColor: colors.outline,
-                          pointColor: colors.primary,
-                          isDark: isDark,
-                          hasData: monthlyTransactions.isNotEmpty,
-                          dataPoints: _generateDataPoints(monthlyTransactions),
-                        ),
-                      ),
+                // Native Line Chart Canvas with 0-Baseline & Theme Awareness
+                SizedBox(
+                  width: double.infinity,
+                  height: 160,
+                  child: CustomPaint(
+                    painter: SparklinePainter(
+                      dataPoints: dailyTotals,
+                      maxY: maxY,
+                      isDark: isDark,
+                      isExpense: _graphMode == GraphMode.expense,
+                      tooltipLabel: tooltipLabel,
+                      activeIndex: activeIndex,
+                      lineColor: colors.primary,
+                      gridLineColor: colors.outline,
+                      pointColor: colors.primary,
                     ),
-
-                    if (monthlyTransactions.isNotEmpty && todayTransactions.isNotEmpty)
-                      Positioned(
-                        top: 8,
-                        left: 190,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Vertical indicator line
-                            Container(
-                              width: 1,
-                              height: 20,
-                              color: colors.primary.withValues(alpha: 0.4),
-                            ),
-                            // Tooltip badge
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: colors.primary,
-                                borderRadius: BorderRadius.circular(9999),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.15),
-                                    blurRadius: 4,
-                                  ),
-                                ],
-                              ),
-                              child: Text(
-                                'Today \$${todayTransactions.fold<double>(0.0, (s, t) => s + t.amount).toStringAsFixed(2)}',
-                                style: AppTypography.labelCaps(colors.onPrimary).copyWith(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
 
                 // Dynamic Numeric X-Axis Date Labels
@@ -352,7 +411,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   padding: const EdgeInsets.only(top: 4, left: 2, right: 2),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: _getNumericDateLabels(colors),
+                    children: _getNumericDateLabels(colors, dailyEntries),
                   ),
                 ),
               ],
@@ -445,7 +504,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Text(
                           monthlyTransactions.isEmpty
                               ? 'All Clear • No Expenses Yet'
-                              : '$currencySymbol${(1000.0 - totalExpense).clamp(0.0, 99999.0).toStringAsFixed(2)} Buffer Remains',
+                              : '$currencySymbol${(1000.0 - monthlyExpense).clamp(0.0, 99999.0).toStringAsFixed(2)} Buffer Remains',
                           style: AppTypography.labelSubtle(colors.onSurfaceVariant),
                         ),
                       ],
@@ -459,7 +518,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     borderRadius: BorderRadius.circular(9999),
                   ),
                   child: Text(
-                    monthlyTransactions.isEmpty ? '100%' : '${((1.0 - (totalExpense / 1000.0).clamp(0.0, 1.0)) * 100).toInt()}%',
+                    monthlyTransactions.isEmpty ? '100%' : '${((1.0 - (monthlyExpense / 1000.0).clamp(0.0, 1.0)) * 100).toInt()}%',
                     style: AppTypography.labelCaps(colors.onSurface).copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -663,12 +722,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _decrementMonth() {
     setState(() {
       _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
+      _selectedTimeRange = 'This Month';
     });
   }
 
   void _incrementMonth() {
     setState(() {
       _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
+      _selectedTimeRange = 'This Month';
     });
   }
 
@@ -680,9 +741,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return '${months[_currentMonth.month - 1]} ${_currentMonth.year}';
   }
 
-  // Generate numeric date labels based on selected range
-  List<Widget> _getNumericDateLabels(dynamic colors) {
+  // Dynamic numeric date labels based on contiguous daily entries
+  List<Widget> _getNumericDateLabels(dynamic colors, List<MapEntry<DateTime, double>> entries) {
+    if (entries.isEmpty) return [];
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final labelStyle = AppTypography.labelCaps(colors.onSurfaceVariant).copyWith(
       fontSize: 10,
       fontWeight: FontWeight.w500,
@@ -692,56 +755,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
       fontWeight: FontWeight.w700,
     );
 
-    switch (_selectedTimeRange) {
-      case '7 Days':
-        // Show all 7 consecutive days
-        final startDay = now.day - 6;
-        return List.generate(7, (i) {
-          final day = startDay + i;
-          final isToday = i == 6;
-          return Text(
-            day.toString(),
-            style: isToday ? todayStyle : labelStyle,
-          );
-        });
-
-      case '15 Days':
-        // Sample with interval ~3-4 days: 5 ticks
-        final days = [
-          now.day - 14, // 15 days ago
-          now.day - 10,
-          now.day - 6,
-          now.day - 3,
-          now.day, // today
-        ];
-        return days.asMap().entries.map((e) {
-          final isToday = e.key == days.length - 1;
-          return Text(
-            e.value.clamp(1, 31).toString(),
-            style: isToday ? todayStyle : labelStyle,
-          );
-        }).toList();
-
-      case 'This Month':
-      default:
-        // Sample with interval ~6-7 days across month
-        final daysInMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
-        final labels = [
-          1,
-          7,
-          14,
-          21,
-          28,
-          daysInMonth, // last day of month
-        ];
-        return labels.map((day) {
-          final isToday = day == now.day && _currentMonth.month == now.month && _currentMonth.year == now.year;
-          return Text(
-            day.toString(),
-            style: isToday ? todayStyle : labelStyle,
-          );
-        }).toList();
+    List<int> labelIndices;
+    if (entries.length <= 7) {
+      labelIndices = List.generate(entries.length, (i) => i);
+    } else if (entries.length <= 16) {
+      labelIndices = [
+        0,
+        (entries.length * 0.25).round(),
+        (entries.length * 0.5).round(),
+        (entries.length * 0.75).round(),
+        entries.length - 1,
+      ];
+    } else {
+      labelIndices = [
+        0,
+        6,
+        13,
+        20,
+        27,
+        entries.length - 1,
+      ].where((i) => i < entries.length).toList();
     }
+
+    return labelIndices.map((idx) {
+      final date = entries[idx].key;
+      final isToday = date.year == today.year && date.month == today.month && date.day == today.day;
+      return Text(
+        date.day.toString(),
+        style: isToday ? todayStyle : labelStyle,
+      );
+    }).toList();
   }
 
   // Show graph type selection menu
@@ -788,55 +831,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // Generate data points for the graph
-  List<double> _generateDataPoints(List<TransactionModel> transactions) {
-    if (transactions.isEmpty) return [];
-
-    // Generate sample data based on selected range
-    switch (_selectedTimeRange) {
-      case '7 Days':
-        return [0.0, 15.0, 25.0, 10.0, 30.0, 45.0, 52.0];
-      case '15 Days':
-        return [0.0, 10.0, 20.0, 15.0, 25.0, 30.0, 20.0, 35.0, 40.0, 30.0, 45.0, 50.0, 48.0, 55.0, 52.0];
-      case 'This Month':
-      default:
-        // Generate monthly data (30 days)
-        return List.generate(30, (i) {
-          if (i < 5) return 0.0; // First few days flat at baseline
-          return (i * 2.0) + (i % 3 * 5.0); // Varied spending pattern
-        });
-    }
-  }
-
   // Show custom date range picker
-  void _showCustomDatePicker() {
-    final colors = context.billuColors;
-    showDialog(
+  Future<void> _showCustomDatePicker() async {
+    final now = DateTime.now();
+    final initialRange = _customDateRange ??
+        DateTimeRange(
+          start: now.subtract(const Duration(days: 6)),
+          end: now,
+        );
+
+    final picked = await showDateRangePicker(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: colors.surfaceContainerLowest,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Custom Date Range',
-          style: AppTypography.headlineMd(colors.onSurface),
-        ),
-        content: Text(
-          'Custom date picker coming soon',
-          style: AppTypography.bodyMd(colors.onSurfaceVariant),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'OK',
-              style: AppTypography.bodyMd(colors.primary).copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035),
+      initialDateRange: initialRange,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context),
+          child: child!,
+        );
+      },
     );
+
+    if (picked != null) {
+      setState(() {
+        _customDateRange = picked;
+        _selectedTimeRange = 'Custom';
+      });
+    }
   }
 }
 
