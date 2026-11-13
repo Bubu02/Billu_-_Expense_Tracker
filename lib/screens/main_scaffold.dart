@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../core/database/db_helper.dart';
 import '../core/storage/storage_service.dart';
 import '../models/account_model.dart';
-import '../models/budget_model.dart';
 import '../models/transaction_model.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
@@ -33,7 +32,6 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   List<TransactionModel> _transactions = [];
   List<AccountModel> _accounts = [];
-  final List<BudgetCategory> _budgetCategories = [];
 
   @override
   void initState() {
@@ -115,7 +113,6 @@ class _MainScaffoldState extends State<MainScaffold> {
       ),
       BudgetAnalyticsScreen(
         transactions: _transactions,
-        categories: _budgetCategories,
       ),
       WalletsScreen(
         accounts: _accounts,

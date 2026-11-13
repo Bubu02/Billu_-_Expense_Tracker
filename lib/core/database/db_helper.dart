@@ -11,7 +11,7 @@ class DBHelper {
   static final DBHelper instance = DBHelper._();
 
   static const _dbName = 'billu.db';
-  static const _dbVersion = 1;
+  static const _dbVersion = 3;
 
   // ── Table & column names ──────────────────────────────────────────────
 
@@ -21,6 +21,7 @@ class DBHelper {
   static const colCatName = 'name';
   static const colCatIcon = 'icon'; // Material icon codePoint
   static const colCatType = 'type'; // 'expense' | 'income'
+  static const colCatMonthlyBudget = 'monthly_budget'; // Nullable REAL for monthly budget limit
   static const colCatCreatedAt = 'created_at';
 
   // Accounts
@@ -49,6 +50,14 @@ class DBHelper {
   static const colTxTimestamp = 'timestamp'; // ISO-8601 string
   static const colTxCreatedAt = 'created_at';
 
+  // Budgets (month-scoped category limits)
+  static const tableBudgets = 'budgets';
+  static const colBudgetId = 'id';
+  static const colBudgetCategoryId = 'category_id'; // FK → categories.id
+  static const colBudgetMonthYear = 'month_year'; // 'YYYY-MM'
+  static const colBudgetLimitAmount = 'limit_amount';
+  static const colBudgetCreatedAt = 'created_at';
+
   // ── Singleton database accessor ───────────────────────────────────────
 
   Database? _db;
@@ -67,6 +76,7 @@ class DBHelper {
       path,
       version: _dbVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -79,6 +89,7 @@ class DBHelper {
         $colCatName     TEXT    NOT NULL UNIQUE,
         $colCatIcon     INTEGER NOT NULL,
         $colCatType     TEXT    NOT NULL DEFAULT 'expense',
+        $colCatMonthlyBudget REAL,
         $colCatCreatedAt TEXT   NOT NULL DEFAULT (datetime('now'))
       )
     ''');
@@ -122,6 +133,24 @@ class DBHelper {
       CREATE INDEX idx_tx_timestamp ON $tableTransactions ($colTxTimestamp)
     ''');
 
+    await db.execute('''
+      CREATE TABLE $tableBudgets (
+        $colBudgetId          INTEGER PRIMARY KEY AUTOINCREMENT,
+        $colBudgetCategoryId  INTEGER NOT NULL,
+        $colBudgetMonthYear   TEXT    NOT NULL,
+        $colBudgetLimitAmount REAL    NOT NULL,
+        $colBudgetCreatedAt   TEXT    NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY ($colBudgetCategoryId) REFERENCES $tableCategories($colCatId)
+          ON DELETE CASCADE,
+        UNIQUE ($colBudgetCategoryId, $colBudgetMonthYear)
+      )
+    ''');
+
+    // Index for fast month-scoped budget lookups.
+    await db.execute('''
+      CREATE INDEX idx_budget_month ON $tableBudgets ($colBudgetMonthYear)
+    ''');
+
     // Pre-seed default categories.
     await _seedCategories(db);
   }
@@ -158,9 +187,43 @@ class DBHelper {
         colCatName: cat['name'],
         colCatIcon: cat['icon'],
         colCatType: cat['type'],
+        colCatMonthlyBudget: null,
       });
     }
     await batch.commit(noResult: true);
+  }
+
+  /// Called when database version is upgraded (handles schema migrations).
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add monthly_budget column to categories table
+      await db.execute('ALTER TABLE $tableCategories ADD COLUMN $colCatMonthlyBudget REAL');
+      // Set default null for existing rows
+      await db.update(
+        tableCategories,
+        {colCatMonthlyBudget: null},
+        where: '$colCatMonthlyBudget IS NULL',
+      );
+    }
+
+    if (oldVersion < 3) {
+      // Create the new month-scoped budgets table.
+      await db.execute('''
+        CREATE TABLE $tableBudgets (
+          $colBudgetId          INTEGER PRIMARY KEY AUTOINCREMENT,
+          $colBudgetCategoryId  INTEGER NOT NULL,
+          $colBudgetMonthYear   TEXT    NOT NULL,
+          $colBudgetLimitAmount REAL    NOT NULL,
+          $colBudgetCreatedAt   TEXT    NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY ($colBudgetCategoryId) REFERENCES $tableCategories($colCatId)
+            ON DELETE CASCADE,
+          UNIQUE ($colBudgetCategoryId, $colBudgetMonthYear)
+        )
+      ''');
+      await db.execute('''
+        CREATE INDEX idx_budget_month ON $tableBudgets ($colBudgetMonthYear)
+      ''');
+    }
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -206,6 +269,53 @@ class DBHelper {
       values,
       where: '$colCatId = ?',
       whereArgs: [id],
+    );
+  }
+
+  /// Updates the monthly budget limit for a category. Pass null to clear the limit.
+  Future<int> updateCategoryBudget(int id, double? limit) async {
+    final db = await database;
+    return db.update(
+      tableCategories,
+      {colCatMonthlyBudget: limit},
+      where: '$colCatId = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Sets (inserts or upserts) a month-scoped category budget.
+  Future<int> setCategoryBudget(int categoryId, String monthYear, double amount) async {
+    final db = await database;
+    return db.insert(
+      tableBudgets,
+      {
+        colBudgetCategoryId: categoryId,
+        colBudgetMonthYear: monthYear,
+        colBudgetLimitAmount: amount,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Returns all budget rows for a given month ('YYYY-MM'), joined with their
+  /// category name and icon for display.
+  Future<List<Map<String, dynamic>>> getBudgetsForMonth(String monthYear) async {
+    final db = await database;
+    return db.query(
+      tableBudgets,
+      where: '$colBudgetMonthYear = ?',
+      whereArgs: [monthYear],
+      orderBy: '$colBudgetCreatedAt ASC',
+    );
+  }
+
+  /// Deletes a budget row by its id.
+  Future<int> deleteBudget(int budgetId) async {
+    final db = await database;
+    return db.delete(
+      tableBudgets,
+      where: '$colBudgetId = ?',
+      whereArgs: [budgetId],
     );
   }
 
@@ -384,6 +494,7 @@ class DBHelper {
         c.$colCatId   AS category_id,
         c.$colCatName AS category_name,
         c.$colCatIcon AS category_icon,
+        c.$colCatMonthlyBudget AS monthly_budget,
         COALESCE(SUM(t.$colTxAmount), 0.0) AS total
       FROM $tableTransactions t
       LEFT JOIN $tableCategories c ON t.$colTxCategoryId = c.$colCatId
