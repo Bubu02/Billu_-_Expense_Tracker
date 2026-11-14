@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/database/db_helper.dart';
+import '../core/storage/storage_service.dart';
 import '../models/budget_model.dart';
 import '../models/transaction_model.dart';
 import '../theme/app_colors.dart';
@@ -43,6 +44,21 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
     Color(0xFFB5B5B5),
     Color(0xFFD8D8D8),
   ];
+
+  String get _currencySymbol => StorageService.instance.getCurrencySymbol();
+
+  String _formatAmount(double amount, {int? fractionDigits}) {
+    final formatted = amount.toStringAsFixed(fractionDigits ?? 2);
+    // Remove trailing zeros after decimal
+    if (formatted.contains('.')) {
+      return formatted.replaceAll(RegExp(r'\.?0+$'), '');
+    }
+    return formatted;
+  }
+
+  String _formatCurrency(double amount, {int? fractionDigits}) {
+    return '$_currencySymbol${_formatAmount(amount, fractionDigits: fractionDigits)}';
+  }
 
   @override
   void initState() {
@@ -175,7 +191,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
 
     final TextEditingController amountController = TextEditingController(
       text: currentLimit != null && currentLimit > 0
-          ? currentLimit.toStringAsFixed(2)
+          ? _formatAmount(currentLimit)
           : '',
     );
 
@@ -194,7 +210,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Current Spend: \$${category.spent.toStringAsFixed(2)}',
+                'Current Spend: ${_formatCurrency(category.spent)}',
                 style: AppTypography.bodyMd(colors.onSurface),
               ),
               const SizedBox(height: 12),
@@ -435,7 +451,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '\$${totalSpent.toStringAsFixed(totalSpent.truncateToDouble() == totalSpent ? 0 : 2)}',
+                            _formatCurrency(totalSpent),
                             style: AppTypography.displayCurrencyMobile(colors.primary).copyWith(
                               fontSize: 34,
                               fontWeight: FontWeight.w700,
@@ -444,7 +460,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                           const SizedBox(height: 2),
                           Text(
                             totalBudgetCap > 0
-                                ? 'of \$${totalBudgetCap.toStringAsFixed(totalBudgetCap.truncateToDouble() == totalBudgetCap ? 0 : 2)} Budget Cap'
+                                ? 'of ${_formatCurrency(totalBudgetCap)} Budget Cap'
                                 : 'No Budget Cap',
                             style: AppTypography.labelSubtle(colors.outline),
                           ),
@@ -505,7 +521,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
-                                    '${(segment.percentage * 100).toInt()}% · \$${segment.amount.toStringAsFixed(segment.amount.truncateToDouble() == segment.amount ? 0 : 2)}',
+                                    '${(segment.percentage * 100).toInt()}% · ${_formatCurrency(segment.amount)}',
                                     style: AppTypography.numericSm(colors.primary).copyWith(
                                       fontSize: 11,
                                     ),
@@ -659,14 +675,14 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen> {
                   text: TextSpan(
                     children: [
                       TextSpan(
-                        text: '\$${cat.spent.toStringAsFixed(cat.spent.truncateToDouble() == cat.spent ? 0 : 2)}',
+                        text: _formatCurrency(cat.spent),
                         style: AppTypography.numericTabular(colors.primary).copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       TextSpan(
                         text: hasBudget
-                            ? ' / \$${cat.limit!.toStringAsFixed(cat.limit!.truncateToDouble() == cat.limit! ? 0 : 2)}'
+                            ? ' / ${_formatCurrency(cat.limit!)}'
                             : ' / Set Budget',
                         style: AppTypography.labelSubtle(colors.secondary),
                       ),

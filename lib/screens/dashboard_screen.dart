@@ -614,6 +614,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Color _getTransactionAmountColor(TransactionType type, BilluColorsExtension colors) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    switch (type) {
+      case TransactionType.expense:
+        return isDark ? Colors.redAccent : Colors.red;
+      case TransactionType.income:
+        return isDark ? Colors.greenAccent : Colors.green;
+      case TransactionType.transfer:
+        return isDark ? Colors.blueAccent : Colors.blue;
+    }
+  }
+
+  String _formatTransactionAmount(TransactionModel tx, bool isMasked, BilluColorsExtension colors) {
+    final currencySymbol = StorageService.instance.getCurrencySymbol();
+    if (isMasked) {
+      return '$currencySymbol•••';
+    }
+    return '$currencySymbol${tx.amount.toStringAsFixed(2)}';
+  }
+
   Widget _buildTransactionSection(
     BuildContext context, {
     required String title,
@@ -657,6 +677,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             itemBuilder: (context, index) {
               final tx = transactions[index];
+              final amountColor = _getTransactionAmountColor(tx.type, colors);
+              final formattedAmount = _formatTransactionAmount(tx, widget.isMasked, colors);
               return InkWell(
                 onTap: () => widget.onTransactionTap?.call(tx),
                 borderRadius: BorderRadius.circular(8),
@@ -702,8 +724,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       Text(
-                        widget.isMasked ? '-\$•••' : tx.formattedAmount,
-                        style: AppTypography.numericTabular(colors.primary).copyWith(
+                        formattedAmount,
+                        style: AppTypography.numericTabular(amountColor).copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),

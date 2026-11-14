@@ -36,6 +36,29 @@ class TransactionModel {
   // Legacy compatibility
   bool get isExpense => type == TransactionType.expense;
 
+  /// Formats amount with the given currency symbol
+  String formatAmountWithCurrency(String currencySymbol) {
+    String prefix;
+    switch (type) {
+      case TransactionType.expense:
+        prefix = '-';
+        break;
+      case TransactionType.income:
+        prefix = '+';
+        break;
+      case TransactionType.transfer:
+        prefix = '';
+        break;
+    }
+    return '$prefix$currencySymbol${amount.toStringAsFixed(2)}';
+  }
+
+  /// Formats amount with the given currency symbol, without +/- prefix
+  String formatAmountPlain(String currencySymbol) {
+    return '$currencySymbol${amount.toStringAsFixed(2)}';
+  }
+
+  /// Legacy formattedAmount for backward compatibility (uses \$)
   String get formattedAmount {
     String prefix;
     switch (type) {

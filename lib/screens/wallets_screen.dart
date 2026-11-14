@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/storage/storage_service.dart';
 import '../models/account_model.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
@@ -21,6 +22,12 @@ class WalletsScreen extends StatefulWidget {
 class _WalletsScreenState extends State<WalletsScreen> {
   String _selectedCurrency = 'USD';
   final List<String> _currencies = ['USD', 'EUR', 'GBP'];
+
+  String get _currencySymbol => StorageService.instance.getCurrencySymbol();
+
+  String _formatAmount(double amount) {
+    return '$_currencySymbol${amount.toStringAsFixed(2)}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -170,8 +177,8 @@ class _WalletsScreenState extends State<WalletsScreen> {
                       children: [
                         Text(
                           netLiquidity < 0
-                              ? '-\$${netLiquidity.abs().toStringAsFixed(2)}'
-                              : '\$${netLiquidity.toStringAsFixed(2)}',
+                              ? '-${_formatAmount(netLiquidity.abs())}'
+                              : _formatAmount(netLiquidity),
                           style: AppTypography.displayCurrencyMobile(colors.primary).copyWith(
                             fontWeight: FontWeight.w700,
                           ),

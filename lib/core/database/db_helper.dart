@@ -504,6 +504,25 @@ class DBHelper {
     ''', args);
   }
 
+  /// Fetch all transactions with joined category and account details for CSV export.
+  /// Returns rows with: Date, Type, Category, Account, Amount, Note.
+  Future<List<Map<String, dynamic>>> getAllTransactionsForExport() async {
+    final db = await database;
+    return db.rawQuery('''
+      SELECT
+        t.$colTxTimestamp AS date,
+        CASE t.$colTxIsExpense WHEN 1 THEN 'Expense' ELSE 'Income' END AS type,
+        c.$colCatName AS category,
+        a.$colAccName AS account,
+        t.$colTxAmount AS amount,
+        t.$colTxSubtitle AS note
+      FROM $tableTransactions t
+      LEFT JOIN $tableCategories c ON t.$colTxCategoryId = c.$colCatId
+      LEFT JOIN $tableAccounts a ON t.$colTxAccountId = a.$colAccId
+      ORDER BY t.$colTxTimestamp DESC
+    ''');
+  }
+
   // ── Utility ───────────────────────────────────────────────────────────
 
   /// Delete **all** rows from every table. Useful for a "reset data" option

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../core/storage/storage_service.dart';
 import '../models/account_model.dart';
+import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
@@ -26,11 +28,11 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
   DateTime _selectedDate = DateTime.now();
   String _currentInput = '';
   String _expression = '';
-  String _selectedCategory = 'General';
-  String _categoryEmoji = '🏷️';
+  CategoryModel? _selectedCategory;
   String? _selectedAccountId;
   String? _toAccountId; // Destination account for transfers
   final TextEditingController _noteController = TextEditingController();
+  List<CategoryModel> _cachedCategories = [];
 
   @override
   void initState() {
@@ -42,6 +44,31 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
       if (widget.accounts!.length > 1) {
         _toAccountId = widget.accounts![1].id;
       }
+    }
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    final categories = StorageService.instance.getCategoriesForType(
+      _selectedType == TransactionType.expense
+          ? TransactionCategoryType.expense
+          : _selectedType == TransactionType.income
+              ? TransactionCategoryType.income
+              : TransactionCategoryType.transfer,
+    );
+    if (mounted) {
+      setState(() {
+        _cachedCategories = categories;
+        _selectedCategory = categories.isNotEmpty
+            ? categories.first
+            : CategoryModel.getDefaultForType(
+                _selectedType == TransactionType.expense
+                    ? TransactionCategoryType.expense
+                    : _selectedType == TransactionType.income
+                        ? TransactionCategoryType.income
+                        : TransactionCategoryType.transfer,
+              );
+      });
     }
   }
 
@@ -138,45 +165,15 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
     }
   }
 
-  IconData _getCategoryIcon(String cat) {
-    switch (cat.toLowerCase()) {
-      case 'groceries':
-        return Icons.shopping_cart_outlined;
-      case 'coffee & drinks':
-      case 'coffee':
-        return Icons.local_cafe_outlined;
-      case 'dining & food':
-      case 'dining':
-        return Icons.restaurant_outlined;
-      case 'transit & commute':
-      case 'transit':
-      case 'commute':
-        return Icons.directions_subway_outlined;
-      case 'shopping':
-        return Icons.local_mall_outlined;
-      case 'rent & utilities':
-        return Icons.home_outlined;
-      case 'entertainment':
-        return Icons.movie_outlined;
-      case 'pet care':
-        return Icons.pets_outlined;
-      case 'salary':
-        return Icons.work_outline_rounded;
-      case 'room rent':
-        return Icons.real_estate_agent_outlined;
-      case 'coupon':
-        return Icons.confirmation_number_outlined;
-      case 'cashback':
-        return Icons.savings_outlined;
-      case 'given':
-      case 'lent/returned':
-        return Icons.volunteer_activism_outlined;
-      case 'investment':
-        return Icons.trending_up_rounded;
-      case 'other income':
-        return Icons.attach_money_rounded;
-      default:
-        return Icons.receipt_outlined;
+  Color _getAmountColor(TransactionType type, BilluColorsExtension colors) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    switch (type) {
+      case TransactionType.expense:
+        return isDark ? Colors.redAccent : Colors.red;
+      case TransactionType.income:
+        return isDark ? Colors.greenAccent : Colors.green;
+      case TransactionType.transfer:
+        return isDark ? Colors.blueAccent : Colors.blue;
     }
   }
 
@@ -228,11 +225,11 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
       txSubtitle = '$fromName → $toName';
       txIcon = Icons.swap_horiz_rounded;
     } else {
-      txTitle = _selectedCategory;
+      txTitle = _selectedCategory?.name ?? 'General';
       txSubtitle = _noteController.text.trim().isNotEmpty
           ? _noteController.text.trim()
           : 'Quick Entry';
-      txIcon = _getCategoryIcon(_selectedCategory);
+      txIcon = _selectedCategory?.icon ?? Icons.receipt_outlined;
     }
 
     final newTx = TransactionModel(
@@ -319,6 +316,7 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
   Widget build(BuildContext context) {
     final colors = context.billuColors;
     final dateStrip = _getDateStrip();
+    final amountColor = _getAmountColor(_selectedType, colors);
 
     return Scaffold(
       backgroundColor: colors.surface,
@@ -468,7 +466,9 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
                             Text(
                               _currentInput.isEmpty ? '0' : _currentInput,
                               style: AppTypography.displayCurrencyMobile(
-                                _currentInput.isEmpty ? colors.onSurface.withValues(alpha: 0.3) : colors.onSurface,
+                                _currentInput.isEmpty
+                                    ? colors.onSurface.withValues(alpha: 0.3)
+                                    : amountColor,
                               ).copyWith(
                                 fontSize: 48,
                                 fontWeight: FontWeight.w700,
@@ -491,7 +491,9 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
                     if (widget.accounts != null && widget.accounts!.isNotEmpty) ...[
                       // From Account Selector (shown for all types)
                       _buildAccountPill(
-                        label: _selectedType == TransactionType.transfer ? 'From:' : (_selectedType == TransactionType.expense ? 'From:' : 'To:'),
+                        label: _selectedType == TransactionType.transfer
+                            ? 'From:'
+                            : (_selectedType == TransactionType.expense ? 'From:' : 'To:'),
                         accountId: _selectedAccountId,
                         onTap: () => _showAccountPicker(isFrom: true),
                       ),
@@ -528,10 +530,14 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(_categoryEmoji, style: const TextStyle(fontSize: 15)),
-                              const SizedBox(width: 6),
+                              Icon(
+                                _selectedCategory?.icon ?? Icons.receipt_outlined,
+                                size: 18,
+                                color: colors.onPrimary,
+                              ),
+                              const SizedBox(width: 8),
                               Text(
-                                _selectedCategory,
+                                _selectedCategory?.name ?? 'General',
                                 style: AppTypography.labelCaps(colors.onPrimary).copyWith(
                                   fontSize: 12,
                                   letterSpacing: 0.5,
@@ -655,13 +661,8 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
         if (_selectedType != type) {
           setState(() {
             _selectedType = type;
-            if (type == TransactionType.expense) {
-              _selectedCategory = 'General';
-              _categoryEmoji = '🏷️';
-            } else if (type == TransactionType.income) {
-              _selectedCategory = 'Salary';
-              _categoryEmoji = '💼';
-            }
+            // Load categories for new type
+            _loadCategories();
           });
         }
       },
@@ -819,59 +820,66 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
                     ],
                   ),
                 ),
-                ...filteredAccounts.map((acc) {
-                  final isSelected = isFrom
-                      ? acc.id == _selectedAccountId
-                      : acc.id == _toAccountId;
-                  return ListTile(
-                    leading: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? colors.primary.withValues(alpha: 0.15)
-                            : colors.surfaceContainer,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(
-                        acc.icon,
-                        size: 18,
-                        color: isSelected ? colors.primary : colors.onSurfaceVariant,
-                      ),
-                    ),
-                    title: Text(
-                      acc.name,
-                      style: AppTypography.bodyMd(colors.onSurface).copyWith(
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                      ),
-                    ),
-                    subtitle: Text(
-                      acc.formattedBalance,
-                      style: AppTypography.numericSm(colors.onSurfaceVariant),
-                    ),
-                    trailing: isSelected
-                        ? Icon(Icons.check_rounded, size: 20, color: colors.primary)
-                        : null,
-                    onTap: () {
-                      setState(() {
-                        if (isFrom) {
-                          _selectedAccountId = acc.id;
-                          // If from and to are now the same, clear toAccountId
-                          if (_toAccountId == acc.id && _selectedType == TransactionType.transfer) {
-                            _toAccountId = accounts
-                                .where((a) => a.id != acc.id)
-                                .map((a) => a.id)
-                                .firstOrNull;
-                          }
-                        } else {
-                          _toAccountId = acc.id;
-                        }
-                      });
-                      Navigator.pop(context);
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: filteredAccounts.length,
+                    itemBuilder: (context, index) {
+                      final acc = filteredAccounts[index];
+                      final isSelected = isFrom
+                          ? acc.id == _selectedAccountId
+                          : acc.id == _toAccountId;
+                      return ListTile(
+                        leading: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? colors.primary.withValues(alpha: 0.15)
+                                : colors.surfaceContainer,
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            acc.icon,
+                            size: 18,
+                            color: isSelected ? colors.primary : colors.onSurfaceVariant,
+                          ),
+                        ),
+                        title: Text(
+                          acc.name,
+                          style: AppTypography.bodyMd(colors.onSurface).copyWith(
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                        subtitle: Text(
+                          acc.formattedBalance,
+                          style: AppTypography.numericSm(colors.onSurfaceVariant),
+                        ),
+                        trailing: isSelected
+                            ? Icon(Icons.check_rounded, size: 20, color: colors.primary)
+                            : null,
+                        onTap: () {
+                          setState(() {
+                            if (isFrom) {
+                              _selectedAccountId = acc.id;
+                              // If from and to are now the same, clear toAccountId
+                              if (_toAccountId == acc.id && _selectedType == TransactionType.transfer) {
+                                _toAccountId = accounts
+                                    .where((a) => a.id != acc.id)
+                                    .map((a) => a.id)
+                                    .firstOrNull;
+                              }
+                            } else {
+                              _toAccountId = acc.id;
+                            }
+                          });
+                          Navigator.pop(context);
+                        },
+                      );
                     },
-                  );
-                }),
+                  ),
+                ),
               ],
             ),
           ),
@@ -882,78 +890,306 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
 
   void _showCategoryPicker() {
     final colors = context.billuColors;
-    final categories = _selectedType == TransactionType.income
-        ? [
-            {'emoji': '💼', 'name': 'Salary'},
-            {'emoji': '🏠', 'name': 'Room Rent'},
-            {'emoji': '🎟️', 'name': 'Coupon'},
-            {'emoji': '🪙', 'name': 'Cashback'},
-            {'emoji': '🤝', 'name': 'Given'},
-            {'emoji': '📈', 'name': 'Investment'},
-            {'emoji': '💵', 'name': 'Other Income'},
-          ]
-        : [
-            {'emoji': '🏷️', 'name': 'General'},
-            {'emoji': '🛒', 'name': 'Groceries'},
-            {'emoji': '☕', 'name': 'Coffee & Drinks'},
-            {'emoji': '🍽️', 'name': 'Dining & Food'},
-            {'emoji': '🚇', 'name': 'Transit & Commute'},
-            {'emoji': '🛍️', 'name': 'Shopping'},
-            {'emoji': '🏠', 'name': 'Rent & Utilities'},
-            {'emoji': '🎬', 'name': 'Entertainment'},
-            {'emoji': '🐾', 'name': 'Pet Care'},
-          ];
+    final categories = _cachedCategories;
+    final type = _selectedType == TransactionType.expense
+        ? TransactionCategoryType.expense
+        : _selectedType == TransactionType.income
+            ? TransactionCategoryType.income
+            : TransactionCategoryType.transfer;
 
     showModalBottomSheet(
       context: context,
       backgroundColor: colors.surfaceContainerLowest,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Select Category',
-                        style: AppTypography.headlineMd(colors.onSurface),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                ),
-                ...categories.map((c) {
-                  return ListTile(
-                    leading: Text(c['emoji']!, style: const TextStyle(fontSize: 22)),
-                    title: Text(
-                      c['name']!,
-                      style: AppTypography.bodyMd(colors.onSurface),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+            ),
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                top: 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Select Category',
+                          style: AppTypography.headlineMd(colors.onSurface),
+                        ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.add_rounded, color: colors.primary),
+                              onPressed: () => _showAddCategoryDialog(type),
+                              tooltip: 'Add Category',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    onTap: () {
-                      setState(() {
-                        _categoryEmoji = c['emoji']!;
-                        _selectedCategory = c['name']!;
-                      });
-                      Navigator.pop(context);
-                    },
-                  );
-                }),
-              ],
+                  ),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: categories.length,
+                      itemBuilder: (context, index) {
+                        final cat = categories[index];
+                        final isSelected = _selectedCategory?.id == cat.id;
+                        final isDefault = !cat.isCustom;
+                        return ListTile(
+                          leading: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? colors.primary.withValues(alpha: 0.15)
+                                  : colors.surfaceContainer,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              cat.icon,
+                              size: 18,
+                              color: isSelected
+                                  ? colors.primary
+                                  : (Theme.of(context).brightness == Brightness.dark
+                                      ? colors.onSurface
+                                      : colors.onSurface),
+                            ),
+                          ),
+                          title: Text(
+                            cat.name,
+                            style: AppTypography.bodyMd(colors.onSurface).copyWith(
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                            ),
+                          ),
+                          subtitle: isDefault
+                              ? Text(
+                                  'Default',
+                                  style: AppTypography.labelSubtle(colors.secondary).copyWith(fontSize: 10),
+                                )
+                              : null,
+                          trailing: isSelected
+                              ? Icon(Icons.check_rounded, size: 20, color: colors.primary)
+                              : (!isDefault
+                                  ? IconButton(
+                                      icon: Icon(Icons.delete_outline_rounded, color: colors.error, size: 20),
+                                      onPressed: () => _confirmRemoveCategory(cat),
+                                      tooltip: 'Remove Category',
+                                    )
+                                  : null),
+                          onTap: () {
+                            setState(() {
+                              _selectedCategory = cat;
+                            });
+                            Navigator.pop(context);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
       },
     );
+  }
+
+  Future<void> _showAddCategoryDialog(TransactionCategoryType type) async {
+    final colors = context.billuColors;
+    final nameController = TextEditingController();
+    IconData selectedIcon = Icons.category_outlined;
+
+    // Available static icons for selection
+    final availableIcons = [
+      Icons.receipt_outlined,
+      Icons.shopping_cart_outlined,
+      Icons.local_cafe_outlined,
+      Icons.restaurant_outlined,
+      Icons.directions_subway_outlined,
+      Icons.local_mall_outlined,
+      Icons.home_outlined,
+      Icons.movie_outlined,
+      Icons.pets_outlined,
+      Icons.work_outline_rounded,
+      Icons.real_estate_agent_outlined,
+      Icons.confirmation_number_outlined,
+      Icons.savings_outlined,
+      Icons.volunteer_activism_outlined,
+      Icons.trending_up_rounded,
+      Icons.attach_money_rounded,
+      Icons.swap_horiz_rounded,
+    ];
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: colors.surfaceContainerLowest,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Add Category', style: AppTypography.headlineMd(colors.onSurface)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  style: AppTypography.bodyMd(colors.onSurface),
+                  decoration: InputDecoration(
+                    labelText: 'Category Name',
+                    labelStyle: AppTypography.labelSubtle(colors.onSurfaceVariant),
+                    hintText: 'e.g., Utilities, Freelance',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: colors.outlineVariant),
+                    ),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Select Icon',
+                  style: AppTypography.labelCaps(colors.onSurfaceVariant),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 100,
+                  child: GridView.builder(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 6,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                    ),
+                    itemCount: availableIcons.length,
+                    itemBuilder: (context, index) {
+                      final icon = availableIcons[index];
+                      final isSelected = icon == selectedIcon;
+                      return GestureDetector(
+                        onTap: () => setDialogState(() => selectedIcon = icon),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isSelected ? colors.primary : colors.surfaceContainer,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected ? colors.primary : colors.outlineVariant,
+                              width: 2,
+                            ),
+                          ),
+                          child: Icon(
+                            icon,
+                            size: 24,
+                            color: isSelected ? colors.onPrimary : colors.onSurfaceVariant,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: TextStyle(color: colors.onSurfaceVariant)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                final messenger = ScaffoldMessenger.of(context);
+                final dialogNavigator = Navigator.of(context);
+                if (name.isEmpty) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Please enter a category name'), behavior: SnackBarBehavior.floating),
+                  );
+                  return;
+                }
+                // Check for duplicate
+                final existing = StorageService.instance.getCategoriesForType(type)
+                    .any((c) => c.name.toLowerCase() == name.toLowerCase());
+                if (existing) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Category already exists'), behavior: SnackBarBehavior.floating),
+                  );
+                  return;
+                }
+                final newCategory = CategoryModel(
+                  id: 'cat-custom-${DateTime.now().millisecondsSinceEpoch}',
+                  name: name,
+                  icon: selectedIcon,
+                  type: type,
+                  isCustom: true,
+                );
+                await StorageService.instance.addCategory(newCategory);
+                await _loadCategories();
+                if (mounted) {
+                  setState(() => _selectedCategory = newCategory);
+                }
+                if (mounted) dialogNavigator.pop(); // Close dialog
+                if (mounted) dialogNavigator.pop(); // Close category picker
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.primary,
+                foregroundColor: colors.onPrimary,
+              ),
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmRemoveCategory(CategoryModel category) async {
+    final navigator = Navigator.of(context);
+    final colors = context.billuColors;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: colors.surfaceContainerLowest,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Remove Category', style: AppTypography.headlineMd(colors.onSurface)),
+        content: Text(
+          'Delete "${category.name}"? Existing transactions will keep this category name but the category will no longer be selectable for new entries.',
+          style: AppTypography.bodyMd(colors.onSurfaceVariant),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: TextStyle(color: colors.onSurfaceVariant)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Remove', style: TextStyle(color: colors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await StorageService.instance.removeCategory(category.id);
+      await _loadCategories();
+      if (mounted) {
+        navigator.pop(); // Close category picker
+      }
+    }
   }
 }

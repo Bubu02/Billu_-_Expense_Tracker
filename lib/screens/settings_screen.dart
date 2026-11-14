@@ -1,4 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:csv/csv.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:intl/intl.dart';
+import '../core/database/db_helper.dart';
 import '../core/storage/storage_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
@@ -9,6 +15,7 @@ class SettingsScreen extends StatefulWidget {
   final bool isMasked;
   final ValueChanged<bool> onMaskChanged;
   final VoidCallback? onEraseData;
+  final VoidCallback? onCurrencyChanged;
 
   const SettingsScreen({
     super.key,
@@ -17,6 +24,7 @@ class SettingsScreen extends StatefulWidget {
     required this.isMasked,
     required this.onMaskChanged,
     this.onEraseData,
+    this.onCurrencyChanged,
   });
 
   @override
@@ -25,13 +33,16 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _biometricUnlock = true;
-  bool _localSmsParser = true;
   String _userName = 'billu member';
+  String _currencyCode = 'USD';
+  String _currencySymbol = '\$';
 
   @override
   void initState() {
     super.initState();
     _userName = StorageService.instance.getUserName();
+    _currencyCode = StorageService.instance.getCurrencyCode();
+    _currencySymbol = StorageService.instance.getCurrencySymbol();
   }
 
   @override
@@ -229,7 +240,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     letterSpacing: 1.2,
                   ),
                 ),
-                Text('3 Active', style: AppTypography.labelSubtle(colors.secondary)),
+                Text('2 Active', style: AppTypography.labelSubtle(colors.secondary)),
               ],
             ),
           ),
@@ -259,15 +270,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onChanged: (val) => widget.onMaskChanged(val),
                   ),
                 ),
-                Divider(color: colors.surfaceContainer, height: 1),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Currency Selection
+          Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 8),
+            child: Text(
+              'Currency',
+              style: AppTypography.labelCaps(colors.secondary).copyWith(
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: colors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
                 _buildSettingRow(
-                  icon: Icons.mark_chat_read_rounded,
-                  title: 'Local SMS Parser',
-                  subtitle: '100% On-Device Transaction Capture',
-                  trailing: _buildToggleSwitch(
-                    value: _localSmsParser,
-                    onChanged: (val) => setState(() => _localSmsParser = val),
+                  icon: Icons.currency_exchange_rounded,
+                  title: 'Currency',
+                  subtitle: '$_currencyCode ($_currencySymbol)',
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: colors.secondary,
                   ),
+                  onTap: () => _showCurrencyPicker(context),
                 ),
               ],
             ),
@@ -300,8 +335,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 _buildSettingRow(
                   icon: Icons.file_download_outlined,
-                  title: 'Export Vault Archive',
-                  subtitle: 'CSV • JSON • Signed PDF Statements',
+                  title: 'Export To Csv',
+                  subtitle: 'Export Transactions To Csv File',
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
@@ -309,21 +344,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       borderRadius: BorderRadius.circular(9999),
                     ),
                     child: Text(
-                      'Download',
+                      'Export',
                       style: AppTypography.labelCaps(colors.onSurface),
                     ),
                   ),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Export ready: CSV, JSON, and PDF bundles generated.')),
-                    );
-                  },
+                  onTap: () => _exportToCsv(context),
                 ),
                 Divider(color: colors.surfaceContainer, height: 1),
                 _buildSettingRow(
                   icon: Icons.cloud_sync_outlined,
-                  title: 'Encrypted Cloud Backup',
-                  subtitle: 'Local Only • Tap To Configure',
+                  title: 'Backup Or Restore To Google Drive',
+                  subtitle: 'Cloud Sync & Recovery',
                   trailing: Icon(
                     Icons.chevron_right_rounded,
                     size: 20,
@@ -331,7 +362,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   onTap: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Syncing with Google Drive isolated app container...')),
+                      const SnackBar(content: Text('Opening Google Drive backup & restore...')),
                     );
                   },
                 ),
@@ -340,7 +371,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.delete_forever_rounded,
                   iconColor: colors.error,
                   title: 'Erase Local Database',
-                  subtitle: 'Purge Cached Indexes & Ledger Files',
+                  subtitle: '',
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
@@ -429,6 +460,217 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  void _showCurrencyPicker(BuildContext context) {
+    final colors = context.billuColors;
+    final List<Map<String, String>> currencies = [
+      {'code': 'USD', 'symbol': '\$', 'name': 'US Dollar'},
+      {'code': 'INR', 'symbol': '₹', 'name': 'Indian Rupee'},
+      {'code': 'EUR', 'symbol': '€', 'name': 'Euro'},
+      {'code': 'GBP', 'symbol': '£', 'name': 'British Pound'},
+      {'code': 'JPY', 'symbol': '¥', 'name': 'Japanese Yen'},
+      {'code': 'CAD', 'symbol': 'CA\$', 'name': 'Canadian Dollar'},
+      {'code': 'AUD', 'symbol': 'A\$', 'name': 'Australian Dollar'},
+      {'code': 'CHF', 'symbol': 'CHF', 'name': 'Swiss Franc'},
+      {'code': 'CNY', 'symbol': '¥', 'name': 'Chinese Yuan'},
+      {'code': 'SGD', 'symbol': 'S\$', 'name': 'Singapore Dollar'},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.surfaceContainerLowest,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select Currency',
+                  style: AppTypography.headlineMd(colors.onSurface),
+                ),
+                const SizedBox(height: 16),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: currencies.length,
+                    separatorBuilder: (_, __) => Divider(color: colors.surfaceContainer, height: 1),
+                    itemBuilder: (context, index) {
+                      final currency = currencies[index];
+                      final isSelected = currency['code'] == _currencyCode;
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                        leading: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: isSelected ? colors.primary : colors.surfaceContainer,
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            currency['symbol']!,
+                            style: AppTypography.labelCaps(
+                              isSelected ? colors.onPrimary : colors.onSurface,
+                            ).copyWith(fontSize: 14),
+                          ),
+                        ),
+                        title: Text(
+                          currency['name']!,
+                          style: AppTypography.bodyMd(colors.onSurface).copyWith(
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${currency['code']} (${currency['symbol']})',
+                          style: AppTypography.labelSubtle(colors.onSurfaceVariant),
+                        ),
+                        trailing: isSelected
+                            ? Icon(Icons.check_circle, color: colors.primary, size: 22)
+                            : null,
+                        onTap: () async {
+                          final selectedCode = currency['code']!;
+                          final selectedSymbol = currency['symbol']!;
+                          final navigator = Navigator.of(context);
+                          final messenger = ScaffoldMessenger.of(context);
+
+                          setState(() {
+                            _currencyCode = selectedCode;
+                            _currencySymbol = selectedSymbol;
+                          });
+                          await StorageService.instance.setCurrency(
+                            selectedSymbol,
+                            selectedCode,
+                          );
+                          if (mounted) {
+                            navigator.pop();
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Currency updated to $selectedCode ($selectedSymbol)',
+                                ),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            widget.onCurrencyChanged?.call();
+                          }
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _exportToCsv(BuildContext context) async {
+    final colors = context.billuColors;
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Show progress indicator
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('Preparing Csv...', style: AppTypography.bodyMd(colors.onSurface)),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 30),
+      ),
+    );
+
+    try {
+      // Fetch transactions from database with joined category and account data
+      final transactions = await DBHelper.instance.getAllTransactionsForExport();
+
+      if (transactions.isEmpty) {
+        if (mounted) {
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('No Transactions To Export', style: AppTypography.bodyMd(colors.onSurface)),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Build CSV rows with Title Case headers
+      final List<List<dynamic>> csvData = [
+        ['Date', 'Type', 'Category', 'Account', 'Amount', 'Note'],
+      ];
+
+      final dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
+
+      for (final tx in transactions) {
+        final dateStr = tx['date'] != null ? dateFormat.format(DateTime.parse(tx['date'] as String)) : '';
+        final type = tx['type'] as String? ?? '';
+        final category = tx['category'] as String? ?? '';
+        final account = tx['account'] as String? ?? '';
+        final amount = (tx['amount'] as num?)?.toString() ?? '0';
+        final note = (tx['note'] as String?)?.replaceAll('"', '""') ?? '';
+
+        csvData.add([dateStr, type, category, account, amount, note]);
+      }
+
+      // Convert to CSV string
+      final csvString = const ListToCsvConverter().convert(csvData);
+
+      // Generate filename with timestamp
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final fileName = 'billu_transactions_$timestamp.csv';
+
+      // Use FilePicker to let user choose destination folder
+      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Select Folder To Save Csv',
+      );
+
+      if (selectedDirectory == null) {
+        // User cancelled folder selection
+        if (mounted) {
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Export Cancelled', style: AppTypography.bodyMd(colors.onSurface)),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Write CSV file to selected directory
+      final file = File('$selectedDirectory/$fileName');
+      await file.writeAsString(csvString, encoding: utf8);
+
+      if (mounted) {
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Saved Csv To Selected Folder', style: AppTypography.bodyMd(colors.onSurface)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Export Failed: $e', style: AppTypography.bodyMd(colors.onSurface)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildSettingRow({

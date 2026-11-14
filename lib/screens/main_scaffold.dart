@@ -132,6 +132,12 @@ class _MainScaffoldState extends State<MainScaffold> {
           StorageService.instance.setMasked(val);
         },
         onEraseData: _onEraseData,
+        onCurrencyChanged: () {
+          setState(() {
+            // Reload accounts and transactions to reflect new currency
+            _loadPersistedData();
+          });
+        },
       ),
     ];
 

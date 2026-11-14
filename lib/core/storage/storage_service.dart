@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/account_model.dart';
+import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 
 class StorageService {
@@ -17,6 +18,7 @@ class StorageService {
   static const String _keyAccounts = 'billu_accounts_json';
   static const String _keyCurrencyCode = 'billu_currency_code';
   static const String _keyCurrencySymbol = 'billu_currency_symbol';
+  static const String _keyCategories = 'billu_categories_json';
 
   SharedPreferences? _prefs;
 
@@ -95,6 +97,48 @@ class StorageService {
     await _prefs?.setString(_keyCurrencyCode, code);
   }
 
+  // ── Categories ──────────────────────────────────────────────────────────
+
+  List<CategoryModel> getCategories() {
+    final raw = _prefs?.getString(_keyCategories);
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list
+          .map((item) => CategoryModel.fromMap(item as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('Error loading categories: $e');
+      return [];
+    }
+  }
+
+  Future<void> saveCategories(List<CategoryModel> categories) async {
+    await init();
+    try {
+      final list = categories.map((c) => c.toMap()).toList();
+      await _prefs?.setString(_keyCategories, jsonEncode(list));
+    } catch (e) {
+      debugPrint('Error saving categories: $e');
+    }
+  }
+
+  List<CategoryModel> getCategoriesForType(TransactionCategoryType type) {
+    return getCategories().where((c) => c.type == type).toList();
+  }
+
+  Future<void> addCategory(CategoryModel category) async {
+    final categories = getCategories();
+    categories.add(category);
+    await saveCategories(categories);
+  }
+
+  Future<void> removeCategory(String categoryId) async {
+    final categories = getCategories();
+    categories.removeWhere((c) => c.id == categoryId);
+    await saveCategories(categories);
+  }
+
   // ── Transactions ────────────────────────────────────────────────────────
 
   List<TransactionModel> getTransactions() {
@@ -154,6 +198,7 @@ class StorageService {
     try {
       await _prefs?.remove(_keyTransactions);
       await _prefs?.remove(_keyAccounts);
+      await _prefs?.remove(_keyCategories);
     } catch (e) {
       debugPrint('Error erasing all data: $e');
     }

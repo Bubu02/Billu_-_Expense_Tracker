@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/storage/storage_service.dart';
 
 class AccountModel {
   final String id;
@@ -23,11 +24,13 @@ class AccountModel {
     this.footerRight,
   });
 
+  String get _currencySymbol => StorageService.instance.getCurrencySymbol();
+
   String get formattedBalance {
     if (balance < 0) {
-      return '-\$${balance.abs().toStringAsFixed(2)}';
+      return '-$_currencySymbol${balance.abs().toStringAsFixed(2)}';
     }
-    return '\$${balance.toStringAsFixed(2)}';
+    return '$_currencySymbol${balance.toStringAsFixed(2)}';
   }
 
   Map<String, dynamic> toMap() {
